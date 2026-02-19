@@ -95,8 +95,13 @@ select.sel{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .add-btn{width:100%;margin-top:8px;background:linear-gradient(135deg,#38bdf8,#818cf8);border:none;border-radius:10px;color:#fff;font-weight:800;font-size:0.9rem;padding:11px;cursor:pointer;font-family:'M PLUS Rounded 1c',sans-serif;transition:all 0.2s;letter-spacing:0.02em;}
 .add-btn:hover{opacity:0.9;transform:translateY(-1px);box-shadow:0 4px 20px rgba(56,189,248,0.3);}
 .quick-adds{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
-.time-sel{background:var(--s2);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:1rem;font-weight:700;width:100%;appearance:none;-webkit-appearance:none;cursor:pointer;}
+.time-sel{background:var(--s2);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:1rem;font-weight:700;width:100%;appearance:none;-webkit-appearance:none;cursor:pointer;text-align:center;}
 .time-sel:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 2px rgba(56,189,248,.12);}
+.time-input-wrap{display:flex;flex-direction:column;gap:4px;}
+.time-steppers{display:flex;gap:3px;justify-content:center;}
+.time-step-btn{padding:3px 0;border:1px solid var(--border);border-radius:6px;background:var(--s2);color:var(--muted);font-size:.58rem;font-weight:700;cursor:pointer;transition:all .15s;flex:1;text-align:center;line-height:1.2;}
+.time-step-btn:hover{border-color:var(--cyan);color:var(--cyan);background:rgba(56,189,248,.08);}
+.time-step-btn:active{background:rgba(56,189,248,.2);}
 .time-sel option{background:#111827;color:#e2e8f0;padding:4px 8px;}
 .time-sel option.hr-mark{color:#38bdf8;font-weight:800;}
 .tstep-btn{padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--s2);color:var(--muted);font-size:.62rem;font-weight:600;cursor:pointer;transition:all .15s;}
@@ -690,9 +695,38 @@ select.sel{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
     <div style="display:flex;flex-direction:column;gap:14px;">
       <div class="card">
         <div class="card-hd"><div class="card-hd-dot"></div>時間ブロック入力</div>
+        <div style="display:flex;gap:4px;margin-bottom:8px;align-items:center;">
+          <span style="font-size:.58rem;color:var(--muted2);margin-right:2px;">刻み:</span>
+          <button class="tstep-btn" id="tstep1" onclick="setTimeStep(1)">1分</button>
+          <button class="tstep-btn active" id="tstep10" onclick="setTimeStep(10)">10分</button>
+          <button class="tstep-btn" id="tstep30" onclick="setTimeStep(30)">30分</button>
+          <button class="tstep-btn" id="tstep60" onclick="setTimeStep(60)">1時間</button>
+        </div>
         <div class="input-row">
-          <div><div class="inp-lbl">開始</div><input type="time" id="startTime" value="09:00" step="600" class="time-sel"></div>
-          <div><div class="inp-lbl">終了</div><input type="time" id="endTime" value="10:00" step="600" class="time-sel"></div>
+          <div class="time-input-wrap">
+            <div class="inp-lbl">開始</div>
+            <select id="startTime" class="time-sel"></select>
+            <div class="time-steppers">
+              <button class="time-step-btn" onclick="stepTime('startTime',-60)">-1h</button>
+              <button class="time-step-btn" onclick="stepTime('startTime',-30)">-30m</button>
+              <button class="time-step-btn" onclick="stepTime('startTime',-10)">-10m</button>
+              <button class="time-step-btn" onclick="stepTime('startTime',10)">+10m</button>
+              <button class="time-step-btn" onclick="stepTime('startTime',30)">+30m</button>
+              <button class="time-step-btn" onclick="stepTime('startTime',60)">+1h</button>
+            </div>
+          </div>
+          <div class="time-input-wrap">
+            <div class="inp-lbl">終了</div>
+            <select id="endTime" class="time-sel"></select>
+            <div class="time-steppers">
+              <button class="time-step-btn" onclick="stepTime('endTime',-60)">-1h</button>
+              <button class="time-step-btn" onclick="stepTime('endTime',-30)">-30m</button>
+              <button class="time-step-btn" onclick="stepTime('endTime',-10)">-10m</button>
+              <button class="time-step-btn" onclick="stepTime('endTime',10)">+10m</button>
+              <button class="time-step-btn" onclick="stepTime('endTime',30)">+30m</button>
+              <button class="time-step-btn" onclick="stepTime('endTime',60)">+1h</button>
+            </div>
+          </div>
         </div>
         <div><div class="inp-lbl">カテゴリ</div>
           <select class="sel" id="category">
@@ -1459,6 +1493,21 @@ const XP_SLEEP_BONUS     = 15;
 let currentDate = todayStr();
 
 // Populate time selects with configurable intervals
+function stepTime(id, deltaMin){
+  var el=document.getElementById(id);
+  var val=el.value;
+  if(!val)val='09:00';
+  var m=t2m(val)+deltaMin;
+  if(m<0)m=0;
+  if(m>=1440)m=1439;
+  // Snap to nearest step
+  var snapped=Math.round(m/currentTimeStep)*currentTimeStep;
+  if(snapped>=1440)snapped=1440-currentTimeStep;
+  if(snapped<0)snapped=0;
+  var newVal=String(Math.floor(snapped/60)).padStart(2,'0')+':'+String(snapped%60).padStart(2,'0');
+  el.value=newVal;
+}
+
 var currentTimeStep=10;
 function buildTimeOptions(step){
   var opts='';
@@ -1491,13 +1540,18 @@ function setTimeStep(step){
   document.getElementById('startTime').value=snapTo(prevS,step);
   document.getElementById('endTime').value=snapTo(prevE,step);
   // Update button states
-  [10,30,60].forEach(function(s){
+  [1,10,30,60].forEach(function(s){
     var btn=document.getElementById('tstep'+s);
     if(btn){btn.className='tstep-btn'+(s===step?' active':'');}
   });
 }
 (function(){
-  // Time inputs are native type="time" with step=600
+  var opts=buildTimeOptions(10);
+  ['startTime','endTime'].forEach(function(id){
+    var el=document.getElementById(id);if(el)el.innerHTML=opts;
+  });
+  var s=document.getElementById('startTime');if(s)s.value='09:00';
+  var e=document.getElementById('endTime');if(e)e.value='10:00';
 })();
 let trendMode   = 'day';
 let selectedDomainId = null;
