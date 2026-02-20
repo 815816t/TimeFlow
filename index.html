@@ -3866,6 +3866,72 @@ setTimeout(()=>{
 // ================================================================
 function confirmReset(){executeReset();}
 // ===== DATA EXPORT / IMPORT =====
+// ===== CLIPBOARD BACKUP =====
+function exportClipboard(){
+  try{
+    var data={};
+    for(var i=0;i<localStorage.length;i++){
+      var k=localStorage.key(i);
+      data[k]=localStorage.getItem(k);
+    }
+    var exportObj={
+      _meta:{app:'TimeFlow',version:'5.0',exportDate:new Date().toISOString(),keyCount:Object.keys(data).length},
+      data:data
+    };
+    var text=JSON.stringify(exportObj);
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){
+        toast('📋 クリップボードにコピーしました！メモアプリやLINEに貼り付けて保存してください');
+        var msg=document.getElementById('dataManageMsg');
+        if(msg)msg.innerHTML='<span style="color:var(--green);">✅ コピー完了（'+Object.keys(data).length+'項目）— メモアプリ等に貼り付けて保存してください</span>';
+      }).catch(function(){
+        fallbackCopy(text);
+      });
+    } else {
+      fallbackCopy(text);
+    }
+  }catch(e){
+    toast('❌ コピーに失敗しました','err');
+  }
+}
+function fallbackCopy(text){
+  var ta=document.createElement('textarea');
+  ta.value=text;
+  ta.style.cssText='position:fixed;top:0;left:0;opacity:0;';
+  document.body.appendChild(ta);
+  ta.focus();ta.select();
+  try{document.execCommand('copy');toast('📋 コピーしました！メモアプリ等に貼り付けて保存してください');}
+  catch(e){toast('❌ コピーに失敗しました。手動でコピーしてください','err');}
+  document.body.removeChild(ta);
+}
+function showImportPaste(){
+  document.getElementById('pasteArea').style.display='block';
+  document.getElementById('pasteInput').value='';
+  document.getElementById('pasteInput').focus();
+}
+function importFromPaste(){
+  var text=document.getElementById('pasteInput').value.trim();
+  if(!text){toast('データを貼り付けてください','err');return;}
+  try{
+    var parsed=JSON.parse(text);
+    if(!parsed.data||!parsed._meta||parsed._meta.app!=='TimeFlow'){
+      toast('❌ 無効なバックアップデータです','err');return;
+    }
+    var keyCount=Object.keys(parsed.data).length;
+    var exportDate=parsed._meta.exportDate?parsed._meta.exportDate.slice(0,10):'不明';
+    if(!confirm('データを復元しますか？\n\nバックアップ日: '+exportDate+'\n'+keyCount+'項目\n\n現在のデータは上書きされます。'))return;
+    localStorage.clear();
+    var count=0;
+    for(var k in parsed.data){
+      if(parsed.data.hasOwnProperty(k)){localStorage.setItem(k,parsed.data[k]);count++;}
+    }
+    toast('📥 復元しました（'+count+'項目）。再読み込みします…');
+    setTimeout(function(){location.reload();},1500);
+  }catch(e){
+    toast('❌ データの形式が正しくありません','err');
+  }
+}
+
 function exportData(){
   try{
     var data={};
@@ -6506,16 +6572,31 @@ initLoanTick();
     <div class="hb-section" style="border-top:2px solid rgba(56,189,248,.3);padding-top:16px;margin-top:8px;">
       <div class="hb-h" style="color:var(--cyan);">💾 データ管理</div>
       <div class="hb-p">バックアップの保存や、別端末へのデータ移行ができます。</div>
-      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
-        <button onclick="exportData()" style="flex:1;min-width:140px;padding:12px 16px;border:1px solid rgba(56,189,248,.4);border-radius:10px;background:rgba(56,189,248,.1);color:var(--cyan);font-size:.82rem;font-weight:700;cursor:pointer;transition:all .2s;">📤 バックアップ保存</button>
-        <button onclick="document.getElementById('importFile').click()" style="flex:1;min-width:140px;padding:12px 16px;border:1px solid rgba(168,85,247,.4);border-radius:10px;background:rgba(168,85,247,.1);color:#c084fc;font-size:.82rem;font-weight:700;cursor:pointer;transition:all .2s;">📥 バックアップ復元</button>
+      <div style="background:rgba(56,189,248,.06);border:1px solid rgba(56,189,248,.15);border-radius:8px;padding:10px;margin-top:8px;margin-bottom:8px;">
+        <div style="font-size:.68rem;font-weight:700;color:var(--cyan);margin-bottom:6px;">📱 スマホの方はこちら（おすすめ）</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button onclick="exportClipboard()" style="flex:1;min-width:120px;padding:10px 14px;border:1px solid rgba(74,222,128,.4);border-radius:10px;background:rgba(74,222,128,.1);color:var(--green);font-size:.78rem;font-weight:700;cursor:pointer;">📋 コピーして保存</button>
+          <button onclick="showImportPaste()" style="flex:1;min-width:120px;padding:10px 14px;border:1px solid rgba(251,191,36,.4);border-radius:10px;background:rgba(251,191,36,.1);color:var(--amber);font-size:.78rem;font-weight:700;cursor:pointer;">📋 貼り付けて復元</button>
+        </div>
+        <div id="pasteArea" style="display:none;margin-top:8px;">
+          <textarea id="pasteInput" placeholder="コピーしたバックアップデータをここに貼り付けてください" style="width:100%;height:80px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px;font-size:.7rem;font-family:'JetBrains Mono',monospace;resize:vertical;box-sizing:border-box;"></textarea>
+          <div style="display:flex;gap:6px;margin-top:6px;">
+            <button onclick="importFromPaste()" style="padding:8px 16px;border:1px solid rgba(56,189,248,.4);border-radius:8px;background:rgba(56,189,248,.15);color:var(--cyan);font-size:.72rem;font-weight:700;cursor:pointer;">復元する</button>
+            <button onclick="document.getElementById('pasteArea').style.display='none'" style="padding:8px 16px;border:1px solid var(--border);border-radius:8px;background:var(--s2);color:var(--muted);font-size:.72rem;cursor:pointer;">キャンセル</button>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:.62rem;color:var(--muted2);margin-bottom:8px;">💻 PCの方はファイル形式も使えます：</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button onclick="exportData()" style="flex:1;min-width:140px;padding:10px 14px;border:1px solid rgba(56,189,248,.25);border-radius:10px;background:rgba(56,189,248,.06);color:var(--cyan);font-size:.75rem;font-weight:700;cursor:pointer;transition:all .2s;">📤 ファイルで保存</button>
+        <button onclick="document.getElementById('importFile').click()" style="flex:1;min-width:140px;padding:10px 14px;border:1px solid rgba(168,85,247,.25);border-radius:10px;background:rgba(168,85,247,.06);color:#c084fc;font-size:.75rem;font-weight:700;cursor:pointer;transition:all .2s;">📥 ファイルで復元</button>
         <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importData(event)">
       </div>
       <div id="dataManageMsg" style="margin-top:8px;font-size:.7rem;color:var(--muted);"></div>
       <div style="margin-top:10px;font-size:.62rem;color:var(--muted2);line-height:1.6;">
-        <b>📤 バックアップ保存:</b> 全データをJSONファイルとしてダウンロードします。<br>
-        <b>📥 バックアップ復元:</b> 保存したJSONファイルからデータを復元します（現在のデータは上書きされます）。<br>
-        <b>💡 おすすめ:</b> 週に1回はバックアップを保存しましょう。Google DriveやiCloudに保管すると安心です。
+        <b>📋 コピーして保存:</b> データをクリップボードにコピー → メモアプリやLINEの自分宛てに貼り付け<br>
+        <b>📋 貼り付けて復元:</b> 保存したテキストをコピー → 貼り付けて復元<br>
+        <b>💡 おすすめ:</b> 週に1回はバックアップを取りましょう。
       </div>
     </div>
 
