@@ -25,10 +25,10 @@ body{background:var(--bg);color:var(--text);font-family:'M PLUS Rounded 1c',sans
   position:fixed;top:0;left:0;right:0;z-index:100;
   background:rgba(12,15,26,0.92);backdrop-filter:blur(16px);
   border-bottom:1px solid var(--border);
-  display:flex;align-items:center;padding:0 24px;height:56px;gap:8px;
+  display:flex;align-items:center;padding:0 24px;height:56px;gap:8px;overflow:hidden;
 }
-.nav-logo{font-family:'DotGothic16',monospace;font-size:1.1rem;color:var(--cyan);letter-spacing:0.05em;margin-right:16px;}
-.nav-tabs{display:flex;gap:4px;flex:1;}
+.nav-logo{font-family:'DotGothic16',monospace;font-size:1.1rem;color:var(--cyan);letter-spacing:0.05em;margin-right:16px;flex-shrink:0;}
+.nav-tabs{display:flex;gap:4px;flex:1;min-width:0;}
 .ntab{
   background:transparent;border:none;
   padding:6px 18px;border-radius:8px;
@@ -44,7 +44,7 @@ body{background:var(--bg);color:var(--text);font-family:'M PLUS Rounded 1c',sans
   font-size:0.55rem;font-weight:800;padding:1px 5px;border-radius:10px;
   font-family:'JetBrains Mono',monospace;
 }
-.nav-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:10px;flex-shrink:0;}
 .xp-pill{
   background:var(--s2);border:1px solid rgba(74,222,128,0.3);
   border-radius:20px;padding:4px 14px;
@@ -97,13 +97,13 @@ select.sel{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .quick-adds{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
 .time-sel{background:var(--s2);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:1rem;font-weight:700;width:100%;appearance:none;-webkit-appearance:none;cursor:pointer;text-align:center;}
 .time-sel:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 2px rgba(56,189,248,.12);}
+.time-sel option{background:#111827;color:#e2e8f0;padding:4px 8px;}
+.time-sel option.hr-mark{color:#38bdf8;font-weight:800;}
 .time-input-wrap{display:flex;flex-direction:column;gap:4px;}
 .time-steppers{display:flex;gap:3px;justify-content:center;}
 .time-step-btn{padding:3px 0;border:1px solid var(--border);border-radius:6px;background:var(--s2);color:var(--muted);font-size:.58rem;font-weight:700;cursor:pointer;transition:all .15s;flex:1;text-align:center;line-height:1.2;}
 .time-step-btn:hover{border-color:var(--cyan);color:var(--cyan);background:rgba(56,189,248,.08);}
 .time-step-btn:active{background:rgba(56,189,248,.2);}
-.time-sel option{background:#111827;color:#e2e8f0;padding:4px 8px;}
-.time-sel option.hr-mark{color:#38bdf8;font-weight:800;}
 .tstep-btn{padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--s2);color:var(--muted);font-size:.62rem;font-weight:600;cursor:pointer;transition:all .15s;}
 .tstep-btn.active{background:rgba(56,189,248,.15);border-color:rgba(56,189,248,.4);color:var(--cyan);font-weight:700;}
 .tstep-btn:hover{border-color:var(--cyan);}
@@ -499,6 +499,16 @@ select.sel{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
   .charts-grid,.big-stats{grid-template-columns:1fr 1fr;}
   .eco-bar{grid-template-columns:1fr;}
 }
+@media(max-width:640px){
+  .nav{padding:0 8px;gap:4px;}
+  .nav-logo{display:none;}
+  .ntab{padding:5px 10px;font-size:.72rem;}
+  .nav-right{gap:4px;}
+  .xp-pill{padding:3px 8px;font-size:.65rem;}
+  .streak-pill{padding:3px 8px;font-size:.65rem;}
+  .help-btn{width:28px;height:28px;font-size:.7rem;}
+  select.sel{-webkit-appearance:menulist;appearance:menulist;background-image:none;padding-right:10px;}
+}
 
 /* ===== INVESTMENTS ===== */
 .inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-top:10px;}
@@ -729,17 +739,10 @@ select.sel{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
           </div>
         </div>
         <div><div class="inp-lbl">カテゴリ</div>
-          <select class="sel" id="category">
-            <option value="仕事">💼 仕事</option>
-            <option value="学習">📚 学習</option>
-            <option value="運動">🏃 運動</option>
-            <option value="趣味">🎮 趣味</option>
-            <option value="食事">🍱 食事</option>
-            <option value="休憩">☕ 休憩</option>
-            <option value="移動">🚃 移動</option>
-            <option value="睡眠">🌙 睡眠</option>
-            <option value="その他">📋 その他</option>
-          </select>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <select class="sel" id="category" style="flex:1;min-width:0;min-height:44px;"></select>
+            <button onclick="showAddSubCat()" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--s2);color:var(--cyan);font-size:.68rem;font-weight:700;cursor:pointer;white-space:nowrap;min-height:44px;" title="サブカテゴリ追加">＋詳細</button>
+          </div>
         </div>
         <button class="add-btn" onclick="addBlock()">＋ 追加</button>
         <div class="daytpl-bar" id="dayTplBar">
@@ -899,6 +902,16 @@ select.sel{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
     <div class="bstat"><div class="bstat-icon">⚡</div><div class="bstat-val" id="bs_xp" style="color:var(--green)">0</div><div class="bstat-lbl">累計XP</div><div class="bstat-sub" style="color:var(--muted2)">ポイント</div></div>
     <div class="bstat"><div class="bstat-icon">💪</div><div class="bstat-val" id="bs_effort" style="color:var(--cyan)">0h</div><div class="bstat-lbl">累計努力時間</div><div class="bstat-sub" id="bs_effort_sub" style="color:var(--muted2)">記録日平均</div></div>
     <div class="bstat"><div class="bstat-icon">🌙</div><div class="bstat-val" id="bs_sleep" style="color:var(--violet)">--</div><div class="bstat-lbl">平均睡眠スコア</div><div class="bstat-sub" style="color:var(--muted2)">/ 100点</div></div>
+  </div>
+
+  <!-- Category Summary -->
+  <div class="card" style="margin-bottom:14px;">
+    <div class="card-hd"><div class="card-hd-dot" style="background:var(--cyan);"></div>カテゴリ別サマリー</div>
+    <div style="display:flex;gap:4px;margin-bottom:10px;">
+      <button class="tstep-btn active" id="sumWeek" onclick="setSumTab('week')">📅 直近7日間</button>
+      <button class="tstep-btn" id="sumAll" onclick="setSumTab('all')">📊 すべての合計</button>
+    </div>
+    <div id="catSummary"></div>
   </div>
 
   <div class="trend-hd">
@@ -1406,6 +1419,56 @@ const CATS = {
 const EFFORT_CATS = ['仕事','学習','運動'];
 const NO_XP_CATS = ['移動','休憩','食事','趣味'];
 
+// ===== SUBCATEGORY SYSTEM =====
+function getSubCats(){return JSON.parse(localStorage.getItem('tf_subcats')||'{}');}
+function saveSubCats(sc){localStorage.setItem('tf_subcats',JSON.stringify(sc));}
+function catBase(c){return (c||'').split('::')[0]||'その他';}
+function catSub(c){return (c||'').split('::')[1]||'';}
+function catLookup(c){return CATS[catBase(c)]||{color:'#64748b',emoji:'📋',effort:false};}
+function catLabel(c){var b=catBase(c),s=catSub(c),cat=CATS[b]||{emoji:'📋'};return s?cat.emoji+' '+b+'（'+s+'）':cat.emoji+' '+b;}
+function buildCatOptions(selected){
+  var sc=getSubCats(),html='';
+  Object.keys(CATS).forEach(function(c){
+    html+='<option value="'+c+'"'+(selected===c?' selected':'')+'>'+CATS[c].emoji+' '+c+'</option>';
+    (sc[c]||[]).forEach(function(s){
+      var v=c+'::'+s;
+      html+='<option value="'+v+'"'+(selected===v?' selected':'')+'>　└ '+CATS[c].emoji+' '+c+'（'+s+'）</option>';
+    });
+  });
+  return html;
+}
+function renderCatSelect(){document.getElementById('category').innerHTML=buildCatOptions('');}
+function showAddSubCat(){
+  var baseCat=catBase(document.getElementById("category").value);
+  var existing=document.getElementById("subCatInputArea");
+  if(existing){existing.remove();return;}
+  var div=document.createElement("div");
+  div.id="subCatInputArea";
+  div.style.cssText="margin-top:6px;display:flex;gap:6px;align-items:center;";
+  div.innerHTML='<input type="text" id="newSubName" placeholder="例: 英語、TOEIC..." style="flex:1;background:var(--s2);border:1px solid var(--cyan);border-radius:8px;color:var(--text);padding:8px 10px;font-size:.78rem;">'+
+    '<button onclick="confirmAddSub()" style="padding:8px 14px;border:1px solid rgba(56,189,248,.4);border-radius:8px;background:rgba(56,189,248,.12);color:var(--cyan);font-size:.72rem;font-weight:700;cursor:pointer;">OK</button>'+
+    '<button onclick="cancelSubCat()" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--s2);color:var(--muted);font-size:.72rem;cursor:pointer;">✕</button>';
+  document.getElementById("category").parentElement.parentElement.appendChild(div);
+  setTimeout(function(){document.getElementById("newSubName").focus();},100);
+}
+function cancelSubCat(){var a=document.getElementById("subCatInputArea");if(a)a.remove();}
+function confirmAddSub(){
+  var baseCat=catBase(document.getElementById("category").value);
+  var inp=document.getElementById("newSubName");
+  var name=inp?inp.value.trim():"";
+  if(!name){toast("名前を入力してください","err");return;}
+  var sc=getSubCats();
+  if(!sc[baseCat])sc[baseCat]=[];
+  if(sc[baseCat].includes(name)){toast("すでに存在します","err");return;}
+  sc[baseCat].push(name);
+  saveSubCats(sc);
+  var area=document.getElementById("subCatInputArea");
+  if(area)area.remove();
+  renderCatSelect();
+  document.getElementById("category").value=baseCat+"::"+name;
+  toast("✅ "+baseCat+"（"+name+"）を追加");
+}
+
 const LEVELS = [
   {min:0,    name:'見習い',       title:'見習い',      avatar:'🧑', color:'#64748b'},
   {min:100,  name:'実践者',       title:'実践者',      avatar:'🧑‍💻', color:'#38bdf8'},
@@ -1500,7 +1563,6 @@ function stepTime(id, deltaMin){
   var m=t2m(val)+deltaMin;
   if(m<0)m=0;
   if(m>=1440)m=1439;
-  // Snap to nearest step
   var snapped=Math.round(m/currentTimeStep)*currentTimeStep;
   if(snapped>=1440)snapped=1440-currentTimeStep;
   if(snapped<0)snapped=0;
@@ -1552,6 +1614,7 @@ function setTimeStep(step){
   });
   var s=document.getElementById('startTime');if(s)s.value='09:00';
   var e=document.getElementById('endTime');if(e)e.value='10:00';
+  renderCatSelect();
 })();
 let trendMode   = 'day';
 let selectedDomainId = null;
@@ -1817,7 +1880,7 @@ function addBlock(forceOverwrite){
       if(sm<bE && em>bS){overlapping.push(b);}
     }
     if(overlapping.length>0 && !forceOverwrite){
-      var names=overlapping.map(function(b){return (CATS[b.category]?CATS[b.category].emoji:'')+ b.category+' '+b.start+'〜'+b.end;}).join('、');
+      var names=overlapping.map(function(b){return catLabel(b.category)+' '+b.start+'〜'+b.end;}).join('、');
       showOverwriteConfirm(names);
       return;
     }
@@ -1834,15 +1897,15 @@ function addBlock(forceOverwrite){
 
     // XP
     var dur=em-sm;
-    var isEffort=CATS[c]&&CATS[c].effort;
-    var isNoXP=NO_XP_CATS.includes(c);
+    var isEffort=catLookup(c).effort;
+    var isNoXP=NO_XP_CATS.includes(catBase(c));
     var specials=getSpecials().filter(function(sp){return sp.cat===c;});
     var xpGain=isNoXP?0:(isEffort?Math.round(dur/60*XP_PER_EFFORT_HOUR):Math.round(dur/60*XP_PER_OTHER_HOUR));
     var bonusMsg='';
     if(specials.length>0){var sp=specials[0];var multi=sp.multi||2;if(dur>=sp.mins){xpGain=Math.round(xpGain*multi);bonusMsg=' (⭐×'+multi+'ボーナス!)';}}
     addXP(xpGain,block);
     var overMsg=overlapping.length>0?'（上書き）':'';
-    toast((CATS[c]?CATS[c].emoji:'')+c+' +'+xpGain+'XP'+bonusMsg+overMsg);
+    toast(catLabel(c)+' +'+xpGain+'XP'+bonusMsg+overMsg);
     onBlockAdded(c);
   } else {
     // Crosses midnight: split into today + tomorrow
@@ -1865,7 +1928,7 @@ function addBlock(forceOverwrite){
     }
     if((overlap1.length>0||overlap2.length>0) && !forceOverwrite){
       var all=overlap1.concat(overlap2);
-      var names=all.map(function(b){return (CATS[b.category]?CATS[b.category].emoji:'')+b.category+' '+b.start+'〜'+b.end;}).join('、');
+      var names=all.map(function(b){return catLabel(b.category)+' '+b.start+'〜'+b.end;}).join('、');
       showOverwriteConfirm(names);
       return;
     }
@@ -1885,11 +1948,11 @@ function addBlock(forceOverwrite){
 
     // XP for total duration
     var totalDur=(1440-sm)+em;
-    var isEffort=CATS[c]&&CATS[c].effort;
-    var isNoXP=NO_XP_CATS.includes(c);
+    var isEffort=catLookup(c).effort;
+    var isNoXP=NO_XP_CATS.includes(catBase(c));
     var xpGain=isNoXP?0:(isEffort?Math.round(totalDur/60*XP_PER_EFFORT_HOUR):Math.round(totalDur/60*XP_PER_OTHER_HOUR));
     addXP(xpGain,block1);
-    toast((CATS[c]?CATS[c].emoji:'')+c+' +'+xpGain+'XP（日をまたぎ分割）');
+    toast(catLabel(c)+' +'+xpGain+'XP（日をまたぎ分割）');
     onBlockAdded(c);
   }
 
@@ -1947,7 +2010,7 @@ function mergeBlocks(day){
 // Recalculate sleep score from sleep blocks
 function recalcSleepFromBlocks(dateStr){
   var day=getDayData(dateStr);
-  var sleepBlocks=day.blocks.filter(function(b){return b.category==='睡眠';});
+  var sleepBlocks=day.blocks.filter(function(b){return catBase(b.category)==='睡眠';});
   if(sleepBlocks.length===0){
     day.sleepScore=null;day.sleepTime=null;day.wakeTime=null;
     setDayData(dateStr,day);return;
@@ -2032,7 +2095,7 @@ function renderSpecialList(){
     return;
   }
   el.innerHTML=specials.map(sp=>{
-    const cat=CATS[sp.cat]||{color:'#64748b',emoji:'📋'};
+    const cat=catLookup(sp.cat);
     return `<div class="special-item">
       <div class="special-dot" style="background:${cat.color}"></div>
       <div class="special-info">
@@ -2419,8 +2482,9 @@ function isDayUnrecorded(dateStr){
 // ================================================================
 // EFFORT
 // ================================================================
-function getEffortMins(blocks){return blocks.filter(b=>CATS[b.category]?.effort).reduce((s,b)=>s+t2m(b.end)-t2m(b.start),0);}
-function getCatMins(blocks,cat){return blocks.filter(b=>b.category===cat).reduce((s,b)=>s+t2m(b.end)-t2m(b.start),0);}
+function getEffortMins(blocks){return blocks.filter(b=>catLookup(b.category).effort).reduce((s,b)=>s+t2m(b.end)-t2m(b.start),0);}
+function getCatMins(blocks,cat){return blocks.filter(b=>catBase(b.category)===cat).reduce((s,b)=>s+t2m(b.end)-t2m(b.start),0);}
+function getSubCatMins(blocks,fullCat){return blocks.filter(b=>b.category===fullCat).reduce((s,b)=>s+t2m(b.end)-t2m(b.start),0);}
 
 // ================================================================
 // PAGE 1 RENDER
@@ -2439,7 +2503,7 @@ function renderP1(){
   // Show sleep block info
   var sInfo=document.getElementById('sleepBlockInfo');
   if(sInfo){
-    var sleepBlks=dayRefresh.blocks.filter(function(b){return b.category==='睡眠';});
+    var sleepBlks=dayRefresh.blocks.filter(function(b){return catBase(b.category)==='睡眠';});
     if(sleepBlks.length>0){
       var totalM=sleepBlks.reduce(function(s,b){return s+t2m(b.end)-t2m(b.start);},0);
       sInfo.innerHTML='🌙 '+sleepBlks.map(function(b){return b.start+'〜'+b.end;}).join(' + ')+' <span style="color:var(--cyan);font-weight:700;">'+m2hm(totalM)+'</span>';
@@ -2464,7 +2528,7 @@ function renderP1(){
 }
 
 function updateDayXPBar(blocks){
-  const total=blocks.reduce((s,b)=>{if(NO_XP_CATS.includes(b.category))return s;return s+(CATS[b.category]?.effort?Math.round((t2m(b.end)-t2m(b.start))/60*XP_PER_EFFORT_HOUR):Math.round((t2m(b.end)-t2m(b.start))/60*XP_PER_OTHER_HOUR));},0);
+  const total=blocks.reduce((s,b)=>{var bc=catBase(b.category);if(NO_XP_CATS.includes(bc))return s;return s+(catLookup(b.category).effort?Math.round((t2m(b.end)-t2m(b.start))/60*XP_PER_EFFORT_HOUR):Math.round((t2m(b.end)-t2m(b.start))/60*XP_PER_OTHER_HOUR));},0);
   const pct=Math.min(100,total/100*100);
   document.getElementById('dayXPBar').style.width=pct+'%';
   document.getElementById('dayXPVal').textContent=total;
@@ -2474,16 +2538,16 @@ function renderBlockList(blocks){
   const el=document.getElementById('blockList');
   if(!blocks.length){el.innerHTML='<div style="text-align:center;color:rgba(255,255,255,0.2);font-size:0.78rem;padding:20px;line-height:1.8;">まだ記録がない日です<br><span style="font-size:.65rem;color:rgba(255,255,255,0.12);">再開はいつでもできます</span></div>';return;}
   el.innerHTML=blocks.map(b=>{
-    const cat=CATS[b.category]||{color:'#64748b',emoji:'📋'};
+    const cat=catLookup(b.category);
     const m=t2m(b.end)-t2m(b.start);
     const isEditing=(editingBlockId===b.id);
     const autoTag=b.autoSleep?'<span style="font-size:.5rem;background:rgba(129,140,248,.15);color:#818cf8;padding:1px 5px;border-radius:4px;margin-left:4px;">自動</span>':'';
     if(isEditing){
-      var catOpts=Object.keys(CATS).map(function(c){return '<option value="'+c+'"'+(c===b.category?' selected':'')+'>'+CATS[c].emoji+' '+c+'</option>';}).join('');
+      var catOpts=buildCatOptions(b.category);
       return '<div class="bitem editing">'+
         '<div class="bdot" style="background:'+cat.color+'"></div>'+
         '<div class="binfo">'+
-          '<div class="bcat">'+cat.emoji+' '+b.category+autoTag+'</div>'+
+          '<div class="bcat">'+catLabel(b.category)+autoTag+'</div>'+
           '<div class="bedit-row">'+
             '<input type="time" id="bedit_s_'+b.id+'" value="'+b.start+'" step="600">'+
             '<span style="color:var(--muted);font-size:.65rem;">〜</span>'+
@@ -2497,20 +2561,20 @@ function renderBlockList(blocks){
         '</div>'+
       '</div>';
     }
-    return '<div class="bitem" onclick="startEditBlock('+b.id+')"><div class="bdot" style="background:'+cat.color+'"></div><div class="binfo"><div class="bcat">'+cat.emoji+' '+b.category+autoTag+'</div><div class="btime">'+b.start+'–'+b.end+' '+m2hm(m)+'</div></div><button class="bdel" onclick="event.stopPropagation();deleteBlock('+b.id+')">×</button></div>';
+    return '<div class="bitem" onclick="startEditBlock('+b.id+')"><div class="bdot" style="background:'+cat.color+'"></div><div class="binfo"><div class="bcat">'+catLabel(b.category)+autoTag+'</div><div class="btime">'+b.start+'–'+b.end+' '+m2hm(m)+'</div></div><button class="bdel" onclick="event.stopPropagation();deleteBlock('+b.id+')">×</button></div>';
   }).join('');
 }
 
 function renderTimeline(blocks){
   const el=document.getElementById('timeline');
   if(!blocks.length){el.innerHTML='<div style="display:flex;height:100%;align-items:center;justify-content:center;color:var(--muted);font-size:0.68rem;">タイムライン</div>';return;}
-  el.innerHTML=blocks.map(b=>{const cat=CATS[b.category]||{color:'#64748b'};const l=(t2m(b.start)/1440*100).toFixed(2),w=((t2m(b.end)-t2m(b.start))/1440*100).toFixed(2);return `<div class="tl-seg" style="left:${l}%;width:${w}%;background:${cat.color}" title="${b.category} ${b.start}-${b.end}"></div>`;}).join('');
+  el.innerHTML=blocks.map(b=>{const cat=catLookup(b.category);const l=(t2m(b.start)/1440*100).toFixed(2),w=((t2m(b.end)-t2m(b.start))/1440*100).toFixed(2);return `<div class="tl-seg" style="left:${l}%;width:${w}%;background:${cat.color}" title="${b.category} ${b.start}-${b.end}"></div>`;}).join('');
 }
 
 function renderPie(blocks){
   // Category totals for legend
   var totals={};
-  blocks.forEach(function(b){var m=t2m(b.end)-t2m(b.start);totals[b.category]=(totals[b.category]||0)+m;});
+  blocks.forEach(function(b){var m=t2m(b.end)-t2m(b.start);var bc=catBase(b.category);totals[bc]=(totals[bc]||0)+m;});
   var total=Object.values(totals).reduce(function(a,b){return a+b;},0);
   document.getElementById('pieTotal').textContent=total?m2hm(total)+'h':'0h';
   var labels=Object.keys(totals),data=labels.map(function(l){return totals[l];}),colors=labels.map(function(l){return (CATS[l]||{color:'#64748b'}).color;});
@@ -2547,7 +2611,7 @@ function renderPie(blocks){
     if(em<=sm)return;
     var startAngle=(sm/1440)*Math.PI*2 - Math.PI/2;
     var endAngle=(em/1440)*Math.PI*2 - Math.PI/2;
-    var cat=CATS[b.category]||{color:'#64748b'};
+    var cat=catLookup(b.category);
     ctx.beginPath();
     ctx.arc(cx,cy,R,startAngle,endAngle);
     ctx.arc(cx,cy,innerR,endAngle,startAngle,true);
@@ -2693,7 +2757,7 @@ function renderDayTplManagerList(){
   }
   el.innerHTML=tpls.map(function(t,i){
     var blockPreview=t.blocks.slice(0,4).map(function(b){
-      var cat=CATS[b.cat]||{emoji:'📋'};
+      var cat=catLookup(b.cat);
       return '<span style="font-size:.55rem;background:var(--s3);border:1px solid var(--border);padding:1px 5px;border-radius:4px;">'+cat.emoji+b.start+'-'+b.end+'</span>';
     }).join(' ')+(t.blocks.length>4?' <span style="font-size:.55rem;color:var(--muted);">+他'+(t.blocks.length-4)+'件</span>':'');
     return '<div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:6px;">'+
@@ -2772,7 +2836,7 @@ function renderDayTplEditList(){
     return;
   }
   el.innerHTML=t.blocks.map(function(b,bi){
-    var cat=CATS[b.cat]||{emoji:'📋',color:'#64748b'};
+    var cat=catLookup(b.cat);
     return '<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--border);">'+
       '<div style="width:8px;height:8px;border-radius:50%;background:'+cat.color+';flex-shrink:0;"></div>'+
       '<span style="font-size:.75rem;font-weight:700;">'+cat.emoji+' '+b.cat+'</span>'+
@@ -2868,6 +2932,45 @@ function addTpl(){
 // ================================================================
 // PAGE 2 RENDER
 // ================================================================
+// ===== CATEGORY SUMMARY =====
+var sumTab='week';
+function setSumTab(t){sumTab=t;document.getElementById('sumWeek').className='tstep-btn'+(t==='week'?' active':'');document.getElementById('sumAll').className='tstep-btn'+(t==='all'?' active':'');renderCatSummary();}
+function renderCatSummary(){
+  var el=document.getElementById('catSummary');if(!el)return;
+  var dates=[];
+  if(sumTab==='week'){for(var i=6;i>=0;i--){var d=new Date();d.setDate(d.getDate()-i);dates.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));}}
+  else{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.startsWith('tf3_d_'))dates.push(k.replace('tf3_d_',''));}dates.sort();}
+  var baseMins={},fullMins={};
+  dates.forEach(function(dt){var day=getDayData(dt);if(!day||!day.blocks)return;
+    day.blocks.forEach(function(b){var m=t2m(b.end)-t2m(b.start);if(m<=0)return;var bc=catBase(b.category);baseMins[bc]=(baseMins[bc]||0)+m;fullMins[b.category]=(fullMins[b.category]||0)+m;});
+  });
+  var sorted=Object.keys(baseMins).sort(function(a,b){return baseMins[b]-baseMins[a];});
+  if(!sorted.length){el.innerHTML='<div style="color:var(--muted2);text-align:center;padding:16px;">記録がありません</div>';return;}
+  var totalM=sorted.reduce(function(s,c){return s+baseMins[c];},0);
+  var fmtM=function(m){return Math.floor(m/60)+'h'+String(m%60).padStart(2,'0')+'m';};
+  var html='<div style="display:flex;flex-direction:column;gap:3px;">';
+  sorted.forEach(function(c){
+    var cat=CATS[c]||{emoji:'📋',color:'#64748b'};var m=baseMins[c];var pct=totalM>0?Math.round(m/totalM*100):0;
+    html+='<div style="padding:8px 10px;background:var(--s1);border-radius:8px;">';
+    html+='<div style="display:flex;justify-content:space-between;align-items:center;">';
+    html+='<span style="font-weight:700;">'+cat.emoji+' '+c+'</span>';
+    html+='<span style="font-family:\'JetBrains Mono\',monospace;font-weight:700;color:'+cat.color+';">'+fmtM(m)+'<span style="color:var(--muted2);font-size:.55rem;margin-left:4px;">'+pct+'%</span></span>';
+    html+='</div>';
+    html+='<div style="height:4px;background:var(--s3);border-radius:2px;margin-top:4px;overflow:hidden;"><div style="height:100%;width:'+pct+'%;background:'+cat.color+';border-radius:2px;"></div></div>';
+    // Sub-categories
+    var subs=Object.keys(fullMins).filter(function(k){return k.startsWith(c+'::');}).sort(function(a,b){return fullMins[b]-fullMins[a];});
+    subs.forEach(function(key){
+      var sn=catSub(key),sm=fullMins[key],sp=m>0?Math.round(sm/m*100):0;
+      html+='<div style="display:flex;justify-content:space-between;padding:3px 0 3px 16px;font-size:.68rem;color:var(--muted2);">';
+      html+='<span>└ '+sn+'</span>';
+      html+='<span style="font-family:\'JetBrains Mono\',monospace;color:var(--muted);">'+fmtM(sm)+' <span style="font-size:.52rem;">'+sp+'%</span></span></div>';
+    });
+    html+='</div>';
+  });
+  html+='<div style="text-align:right;font-size:.65rem;color:var(--muted2);margin-top:6px;">合計: <span style="font-family:\'JetBrains Mono\',monospace;color:var(--text);font-weight:700;">'+fmtM(totalM)+'</span></div></div>';
+  el.innerHTML=html;
+}
+
 function renderP2(){
   const allDates=getAllDates();
   const streak=calcStreak();
@@ -2899,6 +3002,7 @@ function renderP2(){
   renderTrends();
   renderHabitGrid();
   renderHistory();
+  renderCatSummary();
 }
 
 function setTrend(m){
@@ -3761,6 +3865,125 @@ setTimeout(()=>{
 // HELP
 // ================================================================
 function confirmReset(){executeReset();}
+// ===== DATA EXPORT / IMPORT =====
+function exportData(){
+  try{
+    var data={};
+    var tfKeys=[];
+    for(var i=0;i<localStorage.length;i++){
+      var k=localStorage.key(i);
+      if(k.startsWith('tf_')||k.startsWith('timeflow')||k==='blocks'||k==='skills'||k==='gold'||k==='xp'||k==='totalXP'){
+        data[k]=localStorage.getItem(k);
+        tfKeys.push(k);
+      }
+    }
+    // Also grab all keys to be safe
+    for(var i=0;i<localStorage.length;i++){
+      var k=localStorage.key(i);
+      if(!data[k]){
+        data[k]=localStorage.getItem(k);
+      }
+    }
+    var exportObj={
+      _meta:{
+        app:'TimeFlow',
+        version:'5.0',
+        exportDate:new Date().toISOString(),
+        keyCount:Object.keys(data).length
+      },
+      data:data
+    };
+    var blob=new Blob([JSON.stringify(exportObj,null,2)],{type:'application/json'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');
+    var dateStr=new Date().toISOString().slice(0,10);
+    a.href=url;
+    a.download='timeflow-backup-'+dateStr+'.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    var msg=document.getElementById('dataManageMsg');
+    if(msg)msg.innerHTML='<span style="color:var(--green);">✅ バックアップを保存しました（'+dateStr+'）— '+Object.keys(data).length+'項目</span>';
+    toast('📤 バックアップを保存しました');
+  }catch(e){
+    toast('❌ バックアップ保存に失敗しました','err');
+    console.error('Export error:',e);
+  }
+}
+
+function importData(event){
+  var file=event.target.files[0];
+  if(!file)return;
+  // Reset file input so same file can be re-selected
+  var fileInput=document.getElementById('importFile');
+  
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var parsed=JSON.parse(e.target.result);
+      // Validate structure
+      if(!parsed.data||!parsed._meta||parsed._meta.app!=='TimeFlow'){
+        toast('❌ 無効なバックアップファイルです','err');
+        fileInput.value='';
+        return;
+      }
+      var keyCount=Object.keys(parsed.data).length;
+      var exportDate=parsed._meta.exportDate?parsed._meta.exportDate.slice(0,10):'不明';
+      
+      // Show confirmation
+      var msg=document.getElementById('dataManageMsg');
+      if(msg){
+        msg.innerHTML='<div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:12px;margin-top:6px;">'+
+          '<div style="font-size:.78rem;font-weight:700;color:#fbbf24;margin-bottom:6px;">⚠️ データを復元しますか？</div>'+
+          '<div style="font-size:.68rem;color:var(--muted);margin-bottom:8px;">バックアップ日: '+exportDate+' / '+keyCount+'項目<br>現在のデータは上書きされます。この操作は取り消せません。</div>'+
+          '<div style="display:flex;gap:6px;">'+
+          '<button onclick="confirmImport()" style="padding:8px 18px;border:1px solid rgba(56,189,248,.4);border-radius:8px;background:rgba(56,189,248,.15);color:var(--cyan);font-size:.75rem;font-weight:700;cursor:pointer;">復元する</button>'+
+          '<button onclick="cancelImport()" style="padding:8px 18px;border:1px solid var(--border);border-radius:8px;background:var(--s2);color:var(--muted);font-size:.75rem;font-weight:700;cursor:pointer;">キャンセル</button>'+
+          '</div></div>';
+      }
+      // Store parsed data temporarily
+      window._pendingImport=parsed.data;
+    }catch(ex){
+      toast('❌ ファイルの読み込みに失敗しました','err');
+      fileInput.value='';
+      console.error('Import parse error:',ex);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function confirmImport(){
+  if(!window._pendingImport)return;
+  try{
+    // Clear current localStorage
+    localStorage.clear();
+    // Restore all keys
+    var data=window._pendingImport;
+    var count=0;
+    for(var k in data){
+      if(data.hasOwnProperty(k)){
+        localStorage.setItem(k,data[k]);
+        count++;
+      }
+    }
+    window._pendingImport=null;
+    document.getElementById('importFile').value='';
+    toast('📥 データを復元しました（'+count+'項目）。再読み込みします…');
+    setTimeout(function(){location.reload();},1500);
+  }catch(e){
+    toast('❌ 復元に失敗しました','err');
+    console.error('Import restore error:',e);
+  }
+}
+
+function cancelImport(){
+  window._pendingImport=null;
+  document.getElementById('importFile').value='';
+  var msg=document.getElementById('dataManageMsg');
+  if(msg)msg.innerHTML='<span style="color:var(--muted);">キャンセルしました</span>';
+}
+
 function showResetConfirm(){
   document.getElementById('resetBtn1').style.display='none';
   var el=document.getElementById('resetConfirmArea');
@@ -6263,6 +6486,39 @@ initLoanTick();
         ・UIメッセージ: 「再開はいつでもできます」
       </div>
     </div>
+
+    <!-- Browser Notice -->
+    <div class="hb-section" style="background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);border-radius:10px;padding:14px;">
+      <div class="hb-h" style="color:var(--cyan);">📱 データの保存について</div>
+      <div class="hb-p" style="line-height:1.7;">
+        TimeFlowのデータは<b>お使いのブラウザ内</b>に保存されます。<br>
+        以下の場合、データにアクセスできなくなります：<br>
+        <span style="color:#fb7185;">✗</span> 別のブラウザで開いた（Chrome → Safari など）<br>
+        <span style="color:#fb7185;">✗</span> 別の端末で開いた（スマホ → PC など）<br>
+        <span style="color:#fb7185;">✗</span> SNSアプリ内ブラウザで開いた<br>
+        <span style="color:#fb7185;">✗</span> ブラウザのデータを消去した<br><br>
+        <b style="color:var(--green);">💡 いつも同じブラウザで開いてください。</b><br>
+        万が一に備えて、下の「データ管理」から定期的にバックアップを取ることをおすすめします。
+      </div>
+    </div>
+
+    <!-- Data Management Section -->
+    <div class="hb-section" style="border-top:2px solid rgba(56,189,248,.3);padding-top:16px;margin-top:8px;">
+      <div class="hb-h" style="color:var(--cyan);">💾 データ管理</div>
+      <div class="hb-p">バックアップの保存や、別端末へのデータ移行ができます。</div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        <button onclick="exportData()" style="flex:1;min-width:140px;padding:12px 16px;border:1px solid rgba(56,189,248,.4);border-radius:10px;background:rgba(56,189,248,.1);color:var(--cyan);font-size:.82rem;font-weight:700;cursor:pointer;transition:all .2s;">📤 バックアップ保存</button>
+        <button onclick="document.getElementById('importFile').click()" style="flex:1;min-width:140px;padding:12px 16px;border:1px solid rgba(168,85,247,.4);border-radius:10px;background:rgba(168,85,247,.1);color:#c084fc;font-size:.82rem;font-weight:700;cursor:pointer;transition:all .2s;">📥 バックアップ復元</button>
+        <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importData(event)">
+      </div>
+      <div id="dataManageMsg" style="margin-top:8px;font-size:.7rem;color:var(--muted);"></div>
+      <div style="margin-top:10px;font-size:.62rem;color:var(--muted2);line-height:1.6;">
+        <b>📤 バックアップ保存:</b> 全データをJSONファイルとしてダウンロードします。<br>
+        <b>📥 バックアップ復元:</b> 保存したJSONファイルからデータを復元します（現在のデータは上書きされます）。<br>
+        <b>💡 おすすめ:</b> 週に1回はバックアップを保存しましょう。Google DriveやiCloudに保管すると安心です。
+      </div>
+    </div>
+
     <div class="hb-section" id="debugSection" style="border-top:2px solid rgba(245,158,11,.3);padding-top:16px;margin-top:8px;display:none;">
       <div style="margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid rgba(239,68,68,.2);">
         <div class="hb-h" style="color:#fb7185;">⚠ データリセット</div>
@@ -6382,6 +6638,45 @@ initLoanTick();
     </div>
   </div>
 </div>
+<!-- ==================== BROWSER NOTICE MODAL ==================== -->
+<div class="tut-overlay" id="browserNoticeOverlay">
+  <div class="tut-card">
+    <div class="tut-inner">
+      <div class="tut-emoji">📱</div>
+      <div class="tut-title">データの保存について<br><span style="font-size:.7rem;color:var(--green);">— はじめにお読みください —</span></div>
+      <div class="tut-desc" style="text-align:left;padding:0 8px;">
+        TimeFlowのデータは<strong>今お使いのブラウザ内</strong>に保存されます。<br><br>
+        そのため、以下の場合は<strong style="color:#fb7185;">データにアクセスできなくなります</strong>：<br><br>
+        <span style="display:flex;align-items:center;gap:6px;margin:3px 0;"><span style="color:#fb7185;font-weight:800;">✗</span> 別のブラウザで開いた（Chrome → Safari など）</span>
+        <span style="display:flex;align-items:center;gap:6px;margin:3px 0;"><span style="color:#fb7185;font-weight:800;">✗</span> 別の端末で開いた（スマホ → PC など）</span>
+        <span style="display:flex;align-items:center;gap:6px;margin:3px 0;"><span style="color:#fb7185;font-weight:800;">✗</span> X（Twitter）やLINEのアプリ内で開いた</span>
+        <span style="display:flex;align-items:center;gap:6px;margin:3px 0;"><span style="color:#fb7185;font-weight:800;">✗</span> ブラウザのデータ・キャッシュを消去した</span>
+        <br>
+        <div style="background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.2);border-radius:10px;padding:10px 12px;margin:4px 0;">
+          <strong style="color:var(--green);">💡 おすすめの使い方</strong><br>
+          <span style="font-size:.68rem;line-height:1.7;">
+            ① <strong>いつも同じブラウザ</strong>（Chrome等）で開く<br>
+            ② ホーム画面にブックマーク追加するとアプリ感覚で使える<br>
+            ③ 📖ガイド内の「💾 データ管理」から<strong>週1バックアップ</strong>で安心
+          </span>
+        </div>
+      </div>
+      <div class="tut-btns" style="margin-top:16px;">
+        <button class="tut-btn primary" onclick="closeBrowserNotice()">OK、わかった 👍</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function closeBrowserNotice(){
+  document.getElementById('browserNoticeOverlay').classList.remove('show');
+  localStorage.setItem('tf_browser_notice_done','1');
+  // After closing browser notice, show tutorial if first visit
+  if(!localStorage.getItem('tf_tutorial_done')){
+    setTimeout(function(){ openTutorial(); }, 400);
+  }
+}
+</script>
 <!-- ==================== TUTORIAL OVERLAY ==================== -->
 <div class="tut-overlay" id="tutOverlay">
   <div class="tut-card">
@@ -6492,8 +6787,12 @@ window.openTutorial = function(){
   document.getElementById('tutOverlay').classList.add('show');
 };
 
-// Auto-show on first visit
-if(!localStorage.getItem('tf_tutorial_done')){
+// Auto-show on first visit: browser notice first, then tutorial
+if(!localStorage.getItem('tf_browser_notice_done')){
+  setTimeout(function(){
+    document.getElementById('browserNoticeOverlay').classList.add('show');
+  }, 800);
+} else if(!localStorage.getItem('tf_tutorial_done')){
   setTimeout(function(){
     openTutorial();
   }, 800);
