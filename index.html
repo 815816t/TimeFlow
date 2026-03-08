@@ -887,7 +887,11 @@ select.sel{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
       <!-- Sleep (auto-calculated from sleep blocks) -->
       <div class="card" style="background:linear-gradient(135deg,var(--s1) 60%,#110a2a);border-color:rgba(192,132,252,0.15);">
         <div class="card-hd"><div class="card-hd-dot" style="background:var(--violet);"></div>睡眠スコア
-          <span style="font-size:0.62rem;color:var(--muted);margin-left:auto;cursor:pointer;" onclick="openSleepIdealEditor()" title="クリックして理想値を編集">理想: <span id="idealDisplay">23:00就寝 / 6:30起床 / 7.5h</span> ✏️</span>
+          <span style="font-size:0.62rem;color:var(--muted2);margin-left:auto;">理想: <span id="idealDisplay">23:00就寝 / 6:30起床 / 7.5h</span></span>
+          <button onclick="openSleepIdealEditor()" title="理想値を編集" style="margin-left:6px;padding:3px 8px;border:1px solid rgba(192,132,252,0.4);border-radius:6px;background:rgba(192,132,252,0.1);color:#c084fc;font-size:.68rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:3px;line-height:1;">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            編集
+          </button>
         </div>
         <div class="sleep-grid">
           <div class="sleep-arc-wrap">
@@ -2473,7 +2477,7 @@ function addBlock(forceOverwrite){
     if(specials.length>0){var sp=specials[0];var multi=sp.multi||2;if(dur>=sp.mins){xpGain=Math.round(xpGain*multi);bonusMsg=' (⭐×'+multi+'ボーナス!)';}}
     // Flow awakening: 3h+ continuous block
     if(dur>=180&&hasAwaken('long_bonus')){var fb=getAwakenBonus('long_bonus');xpGain=Math.round(xpGain*(1+fb));bonusMsg+=' (🌊フロー×'+(1+fb).toFixed(1)+')';}
-    addXP(xpGain,block,c);
+    addXP(xpGain,block);
     var overMsg=overlapping.length>0?'（上書き）':'';
     toast(catLabel(c)+' +'+xpGain+'XP'+bonusMsg+overMsg);
     onBlockAdded(c);
@@ -3793,7 +3797,7 @@ function renderDayTplManagerList(){
   }).join('');
 }
 
-function saveDayTplFromCurrent(){
+function saveDayTplFromCurrent(forceOverwrite){
   var name=document.getElementById('dayTplName').value.trim();
   if(!name){toast('テンプレート名を入力してください','err');return;}
   var day=getDayData(currentDate);
@@ -3801,12 +3805,39 @@ function saveDayTplFromCurrent(){
   var tplBlocks=day.blocks.filter(function(b){return !b.autoSleep;}).map(function(b){return {start:b.start,end:b.end,cat:b.category};});
   if(!tplBlocks.length){toast('保存できるブロックがありません','err');return;}
   var tpls=getDayTemplates();
-  tpls.push({name:name,blocks:tplBlocks});
+  var existIdx=tpls.findIndex(function(t){return t.name===name;});
+  if(existIdx>=0 && !forceOverwrite){
+    // 確認UIを表示
+    showDayTplOverwriteConfirm(name, tplBlocks, existIdx);
+    return;
+  }
+  if(existIdx>=0){
+    tpls[existIdx]={name:name,blocks:tplBlocks};
+    toast('📅 「'+name+'」を上書き保存しました');
+  } else {
+    tpls.push({name:name,blocks:tplBlocks});
+    toast('📅 「'+name+'」を保存しました');
+  }
   setDayTemplates(tpls);
   document.getElementById('dayTplName').value='';
-  toast('📅 「'+name+'」を保存しました');
+  hideDayTplOverwriteConfirm();
   renderDayTplManagerList();
   renderDayTplBar();
+}
+
+function showDayTplOverwriteConfirm(name, blocks, existIdx){
+  var el=document.getElementById('dayTplOverwriteConfirm');
+  document.getElementById('dayTplOverwriteName').textContent=name;
+  document.getElementById('dayTplOverwriteCount').textContent=blocks.length;
+  el.style.display='block';
+}
+
+function hideDayTplOverwriteConfirm(){
+  document.getElementById('dayTplOverwriteConfirm').style.display='none';
+}
+
+function confirmDayTplOverwrite(){
+  saveDayTplFromCurrent(true);
 }
 
 function saveDayTplEmpty(){
@@ -3887,31 +3918,70 @@ function removeDayTplBlock(bi){
   renderDayTplBar();
 }
 
+// 適用モード確認用の一時変数
+var _pendingTplIdx=null;
+
 function applyDayTpl(i){
   var tpls=getDayTemplates();
   var t=tpls[i];
   if(!t.blocks.length){toast('このテンプレートにはブロックがありません','err');return;}
+  // 既存の非autoSleepブロックと重複するか事前チェック
   var day=getDayData(currentDate);
-  var existingNonAuto=day.blocks.filter(function(b){return !b.autoSleep;});
-  var added=0,skipped=0;
+  var hasConflict=false;
+  var conflictCount=0;
+  // 元のblocks（適用前）だけで判定するためスナップショット
+  var origBlocks=day.blocks.slice();
   t.blocks.forEach(function(tb){
     var sm=t2m(tb.start),em=t2m(tb.end);
-    // Check overlap with existing
-    var overlaps=false;
-    for(var j=0;j<day.blocks.length;j++){
-      var b=day.blocks[j];
+    for(var j=0;j<origBlocks.length;j++){
+      var b=origBlocks[j];
+      if(sm<t2m(b.end)&&em>t2m(b.start)){hasConflict=true;conflictCount++;break;}
+    }
+  });
+  if(hasConflict){
+    _pendingTplIdx=i;
+    document.getElementById('tplConflictName').textContent=t.name;
+    document.getElementById('tplConflictCount').textContent=conflictCount;
+    document.getElementById('tplConflictModal').classList.add('show');
+    return;
+  }
+  _doApplyDayTpl(i,false);
+}
+
+function _doApplyDayTpl(i,overwrite){
+  var tpls=getDayTemplates();
+  var t=tpls[i];
+  var day=getDayData(currentDate);
+  // overwrite: 重複している既存ブロック（autoSleep以外）を削除してからテンプレを適用
+  if(overwrite){
+    var origBlocks=day.blocks.slice();
+    var keepBlocks=[];
+    origBlocks.forEach(function(b){
+      if(b.autoSleep){keepBlocks.push(b);return;}
       var bS=t2m(b.start),bE=t2m(b.end);
-      if(sm<bE&&em>bS){overlaps=true;break;}
+      var conflict=t.blocks.some(function(tb){return t2m(tb.start)<bE&&t2m(tb.end)>bS;});
+      if(!conflict)keepBlocks.push(b);
+    });
+    day.blocks=keepBlocks;
+  }
+  var added=0,skipped=0;
+  // スナップショット（追加済みブロックとの衝突を防ぐため、元のブロックのみで判定）
+  var baseBlocks=day.blocks.slice();
+  t.blocks.forEach(function(tb){
+    var sm=t2m(tb.start),em=t2m(tb.end);
+    var overlaps=false;
+    for(var j=0;j<baseBlocks.length;j++){
+      var b=baseBlocks[j];
+      if(sm<t2m(b.end)&&em>t2m(b.start)){overlaps=true;break;}
     }
     if(!overlaps){
       var block={start:tb.start,end:tb.end,category:tb.cat,id:Date.now()+Math.random()*10000|0};
       day.blocks.push(block);
-      // XP
       var dur=em-sm;
-      var isEffort=CATS[tb.cat]&&CATS[tb.cat].effort;
-      var isNoXP=NO_XP_CATS.includes(tb.cat);
+      var isEffort=catLookup(tb.cat).effort;
+      var isNoXP=NO_XP_CATS.includes(catBase(tb.cat));
       var xpGain=isNoXP?0:(isEffort?Math.round(dur/60*XP_PER_EFFORT_HOUR):Math.round(dur/60*XP_PER_OTHER_HOUR));
-      addXP(xpGain,block,tb.cat);
+      addXP(xpGain,block);
       added++;
     } else {
       skipped++;
@@ -3924,6 +3994,20 @@ function applyDayTpl(i){
   var msg='📅 「'+t.name+'」を適用 — '+added+'件追加';
   if(skipped>0)msg+='（'+skipped+'件は重複スキップ）';
   toast(msg);
+}
+
+function tplConflictOverwrite(){
+  closeModal('tplConflictModal');
+  if(_pendingTplIdx===null)return;
+  _doApplyDayTpl(_pendingTplIdx,true);
+  _pendingTplIdx=null;
+}
+
+function tplConflictMerge(){
+  closeModal('tplConflictModal');
+  if(_pendingTplIdx===null)return;
+  _doApplyDayTpl(_pendingTplIdx,false);
+  _pendingTplIdx=null;
 }
 
 function renderQuickAdds(){
@@ -7950,6 +8034,36 @@ initLoanTick();
         <button class="btn sm" onclick="saveDayTplFromCurrent()" style="border-color:var(--cyan);color:var(--cyan);flex:1;">📝 今日の記録から作成</button>
         <button class="btn sm" onclick="saveDayTplEmpty()" style="border-color:var(--amber);color:var(--amber);">空で作成</button>
       </div>
+      <!-- 上書き確認エリア -->
+      <div id="dayTplOverwriteConfirm" style="display:none;margin-top:10px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.35);border-radius:10px;padding:10px 12px;">
+        <div style="font-size:.72rem;color:var(--amber);font-weight:700;margin-bottom:6px;">⚠️ 「<span id="dayTplOverwriteName"></span>」はすでに存在します</div>
+        <div style="font-size:.65rem;color:var(--muted2);margin-bottom:8px;">今日の記録 <span id="dayTplOverwriteCount"></span>件で上書きしますか？</div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn sm" onclick="confirmDayTplOverwrite()" style="border-color:var(--amber);color:var(--amber);flex:1;font-weight:700;">🔄 上書きする</button>
+          <button class="btn sm" onclick="hideDayTplOverwriteConfirm()" style="flex:1;">キャンセル</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Day Template Conflict Modal -->
+<div class="modal" id="tplConflictModal">
+  <div class="modal-box" style="max-width:400px;">
+    <div class="modal-hd">⚠️ 時間帯が重複しています<button class="modal-close" onclick="closeModal('tplConflictModal')">×</button></div>
+    <div style="font-size:.72rem;color:var(--muted2);margin-bottom:14px;line-height:1.7;">
+      「<span id="tplConflictName" style="color:var(--text);font-weight:700;"></span>」を適用すると、既存の記録 <span id="tplConflictCount" style="color:var(--amber);font-weight:700;"></span> 件と重複します。<br>どのように適用しますか？
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button class="btn sm" onclick="tplConflictOverwrite()" style="border-color:var(--rose);color:var(--rose);padding:10px;font-size:.75rem;font-weight:700;">
+        🔄 重複部分を上書きして適用
+        <div style="font-size:.62rem;color:var(--muted2);font-weight:400;margin-top:2px;">重複している既存ブロックを削除してテンプレを反映</div>
+      </button>
+      <button class="btn sm" onclick="tplConflictMerge()" style="border-color:var(--cyan);color:var(--cyan);padding:10px;font-size:.75rem;font-weight:700;">
+        ➕ 空き時間だけに追加
+        <div style="font-size:.62rem;color:var(--muted2);font-weight:400;margin-top:2px;">重複しない時間帯のみテンプレを追加（既存を保持）</div>
+      </button>
+      <button class="btn sm" onclick="closeModal('tplConflictModal')" style="font-size:.72rem;">キャンセル</button>
     </div>
   </div>
 </div>
@@ -8646,6 +8760,9 @@ function applyDmg(enemy, dmg, msgs){
 function checkOnDeath(enemy, msgs){
   // 撃破を戦績に記録
   logKill(enemy);
+  // 二重呼び出し防止
+  if(enemy._deathProcessed && enemy._deathLoggedOnce){ return; }
+  enemy._deathLoggedOnce = true;
   if(enemy.onDeath === 'split' && enemy.splitInto && enemy.splitInto.length > 0){
     var spawned = enemy.splitInto.map(function(s){
       // ディープコピーでネストしたsplitIntoも保持
@@ -8662,7 +8779,14 @@ function initBattle(party, enemies){
   battleState.party = party.map(function(h){
     return Object.assign({}, h, { done: false });
   });
-  battleState.enemies = enemies.map(function(e){ return Object.assign({}, e, {curHp: e.hp}); });
+  battleState.enemies = enemies.map(function(e){
+    // ディープコピーして定義オブジェクトを汚染しない（splitInto内のフラグも完全リセット）
+    var copy = JSON.parse(JSON.stringify(e));
+    copy.curHp = copy.hp;
+    delete copy._deathProcessed;
+    delete copy._deathLoggedOnce;
+    return copy;
+  });
   battleState.turn = 1; battleState.phase = 'command';
   battleState.activeHeroIdx = firstActiveHero();
   battleState.atkBuff = {}; battleState.strikeBuff = {}; battleState.levelBuff = {}; battleState.msgQueue = [];
@@ -8802,22 +8926,44 @@ function executeAction(heroIdx, action){
       // 次の生存敵を取得（現在のターゲットが死んでいたら切り替え）
       if(currentTarget.curHp <= 0){
         var deadEnemy = currentTarget; // 死んだ敵を保持
-        checkOnDeath(deadEnemy, msgs); // 分裂処理もここで実行
+        var splitMsgs = [];
+        // 死亡処理は一度だけ実行（already processed フラグで二重呼び出しを防ぐ）
+        if(!deadEnemy._deathProcessed){
+          deadEnemy._deathProcessed = true;
+          checkOnDeath(deadEnemy, splitMsgs); // 分裂処理・分裂メッセージをsplitMsgsへ
+        }
+        var isSplit = deadEnemy.onDeath === 'split' && splitMsgs.length > 0;
         // 分裂含めて生存敵を再チェック
         var nextTarget = bs.enemies.find(function(e){return e.curHp>0;});
-        if(!nextTarget){
-          // 全滅（分裂後も含め誰も生きていない）
-          var summary2 = hero.label+'のこうげき！';
-          if(totalDmg>0) summary2 += '\nあわせて '+totalDmg+' のダメージ！';
-          msgs.push(summary2);
-          hero.done = true;
-          pushMsgs(msgs, function(){bsAdvanceHero();}); return;
-        }
-        // 分裂しない敵なら撃破メッセージ
-        if(deadEnemy.onDeath !== 'split'){
+        if(!isSplit){
           msgs.push(deadEnemy.name+' をやっつけた！');
         }
-        // 同じ勇者が再行動（activeHeroIdxを現在のheroIdxに維持）
+        if(!nextTarget){
+          // 全滅（分裂後も含め誰も生きていない）
+          var allMsgs = msgs.concat(splitMsgs);
+          var summary2 = hero.label+'のこうげき！';
+          if(totalDmg>0) summary2 += '\nあわせて '+totalDmg+' のダメージ！';
+          allMsgs.push(summary2);
+          hero.done = true;
+          pushMsgs(allMsgs, function(){bsAdvanceHero();}); return;
+        }
+        // 次の生存敵にターゲットを切り替え
+        currentTarget = nextTarget;
+        currentTargetIdx = bs.enemies.indexOf(nextTarget);
+        if(isSplit){
+          // 分裂メッセージを先に1枚ずつ表示してからコマンド選択へ
+          var keepHeroIdx2 = heroIdx;
+          var preMsgs = msgs.concat(splitMsgs);
+          preMsgs.push('⚡ '+hero.label+' はもう一度行動できる！');
+          hero.done = false;
+          pushMsgs(preMsgs, function(){
+            bs.activeHeroIdx = keepHeroIdx2;
+            bs.phase = 'command';
+            renderLegend();
+          });
+          return;
+        }
+        // 分裂なし → 同じ勇者が再行動
         msgs.push('⚡ '+hero.label+' はもう一度行動できる！');
         hero.done = false;
         var keepHeroIdx = heroIdx;
@@ -8828,6 +8974,7 @@ function executeAction(heroIdx, action){
         });
         return;
       }
+
       remainingStrikes--;
       var roll = Math.random();
       var strikeType, strikeDmg;
