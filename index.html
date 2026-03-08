@@ -5639,12 +5639,12 @@ addXP = function(amount, blockEl){
 // INVESTMENT SYSTEM
 // ================================================================
 const STOCKS = [
-  {id:'stk_idx',name:'S&P500インデックス',icon:'📊',desc:'米国大型株500社に連動。長期投資の王道。',basePrice:5000,volatility:0.015,drift:0.0003,risk:'低',req:null},
-  {id:'stk_topix',name:'TOPIXファンド',icon:'🗾',desc:'東証上場銘柄に広く分散。国内経済と連動。',basePrice:3000,volatility:0.012,drift:0.0002,risk:'低',req:null},
+  {id:'stk_idx',name:'F&E50ファンド',icon:'📊',desc:'米国大型株に広く分散。長期積立の定番。',basePrice:5000,volatility:0.015,drift:0.0003,risk:'低',req:null},
+  {id:'stk_topix',name:'POPEXファンド',icon:'🗾',desc:'国内上場銘柄に幅広く分散。国内経済と連動。',basePrice:3000,volatility:0.012,drift:0.0002,risk:'低',req:null},
   {id:'stk_nasdaq',name:'NASDAQ100',icon:'💻',desc:'ハイテク大型株に集中。成長期待大。',basePrice:8000,volatility:0.025,drift:0.0005,risk:'中',req:{skill:'strategy',lv:2}},
-  {id:'stk_emerging',name:'新興国株ファンド',icon:'🌍',desc:'BRICSなど新興国に投資。高成長・高リスク。',basePrice:4000,volatility:0.03,drift:0.0002,risk:'中',req:{skill:'strategy',lv:2}},
+  {id:'stk_emerging',name:'新興国株ファンド',icon:'🌍',desc:'新興国に広く分散投資。高成長・高リスク。',basePrice:4000,volatility:0.03,drift:0.0002,risk:'中',req:{skill:'strategy',lv:2}},
   {id:'stk_reit',name:'グローバルREIT',icon:'🏗️',desc:'世界の不動産投資信託。配当利回り高め。',basePrice:6000,volatility:0.018,drift:0.0003,risk:'中',req:{skill:'depth',lv:2}},
-  {id:'stk_crypto',name:'暗号資産ファンド',icon:'₿',desc:'BTC/ETH中心。ハイリスク・ハイリターン。',basePrice:10000,volatility:0.06,drift:0.0004,risk:'高',req:{skill:'depth',lv:2}},
+  {id:'stk_crypto',name:'暗号資産ファンド',icon:'₿',desc:'仮想通貨に連動。ハイリスク・ハイリターン。',basePrice:10000,volatility:0.06,drift:0.0004,risk:'高',req:{skill:'depth',lv:2}},
   {id:'stk_leverage',name:'レバレッジNASDAQ(3倍)',icon:'⚡',desc:'NASDAQ100の3倍値動き。暴落リスク極大。',basePrice:12000,volatility:0.075,drift:0.0006,risk:'極高',req:{skill:'strategy',lv:3}},
   {id:'stk_venture',name:'ベンチャーキャピタル',icon:'🚀',desc:'未上場企業に出資。大化けか紙切れか。',basePrice:25000,volatility:0.16,drift:0.0003,risk:'極高',req:{skill:'strategy',lv:3}},
 ];
@@ -7664,6 +7664,17 @@ const ACHIEVEMENTS = [
   {id:'ach_todo3',name:'目標達成者',emoji:'📋',desc:'ToDoリストの目標を3つ達成',rew:'XP +300 & +300G',check:()=>(getTodos().filter(t=>t.done).length>=3),reward:()=>{addXPRaw(300);setGold(getGold()+300);}},
   {id:'ach_hidden_loan',name:'???',emoji:'🏦',desc:'???',rew:'+500G',hidden:true,realName:'信用取引の達人',realDesc:'消費者金融から借入する',check:function(){return getLoanData().status==='active'||getLoanData().repaid;},reward:function(){setGold(getGold()+500);}},
   {id:'ach_hidden_loan1m',name:'???',emoji:'🏦',desc:'???',rew:'+10000G & XP +2000',hidden:true,realName:'ミリオンクレジット',realDesc:'消費者金融で100万G以上を借入する',check:function(){var ld=getLoanData();return ld.borrowed>=1000000||(ld.principal&&ld.principal>=1000000);},reward:function(){setGold(getGold()+10000);addXPRaw(2000);}},
+
+  // ── 伝説システム実績 ──
+  {id:'ach_legend_first',   name:'初陣',             emoji:'⚔️', desc:'はじめて伝説のダンジョンに挑む',         rew:'XP +50',              check:function(){var ld=getLegendData(); return ld.defeatedBosses.length>0||legendState.clearedNodes.length>0;}, reward:function(){addXPRaw(50);}},
+  {id:'ach_legend_boss1',   name:'鎧の魔王討伐',     emoji:'👹', desc:'よろいまおうを倒す',                     rew:'XP +500 & +300G',     check:function(){return getLegendData().defeatedBosses.includes('よろいまおう');}, reward:function(){addXPRaw(500);setGold(getGold()+300);}},
+  {id:'ach_legend_boss2',   name:'???',              emoji:'👑', desc:'???',                                   rew:'+1000G & XP +1000',   hidden:true, realName:'怠惰の王討伐', realDesc:'怠惰の王を倒す', check:function(){return getLegendData().defeatedBosses.includes('怠惰の王');}, reward:function(){setGold(getGold()+1000);addXPRaw(1000);}},
+  {id:'ach_legend_wanderer',name:'???',              emoji:'🌫️',desc:'???',                                   rew:'+500G',               hidden:true, realName:'さすらいの美学', realDesc:'さすらい人を5人以上パーティに入れて出陣する', check:function(){return legendState.selectedHeroes.filter(function(h){return h.job==='さすらい人';}).length>=5;}, reward:function(){setGold(getGold()+500);}},
+  {id:'ach_legend_legend5', name:'???',              emoji:'🌟', desc:'???',                                   rew:'XP +800 & +500G',     hidden:true, realName:'伝説パーティ', realDesc:'伝説の勇者を5人以上パーティに入れて出陣する', check:function(){return legendState.selectedHeroes.filter(function(h){return h.rarity==='legendary';}).length>=5;}, reward:function(){addXPRaw(800);setGold(getGold()+500);}},
+  {id:'ach_legend_100heroes',name:'???',             emoji:'💯', desc:'???',                                   rew:'+2000G & XP +500',    hidden:true, realName:'百人の勇者', realDesc:'累計100人以上の勇者をダンジョンに送り込む', check:function(){return (ls_get('legend_total_heroes')||0)>=100;}, reward:function(){setGold(getGold()+2000);addXPRaw(500);}},
+  {id:'ach_legend_fullclear',name:'???',             emoji:'🏆', desc:'???',                                   rew:'+5000G & XP +3000',   hidden:true, realName:'塔の征服者', realDesc:'げんえいの塔を完全制覇する（全ボス討伐）', check:function(){var db=getLegendData().defeatedBosses; return db.includes('よろいまおう')&&db.includes('怠惰の王');}, reward:function(){setGold(getGold()+5000);addXPRaw(3000);}},
+  {id:'ach_legend_ng2',      name:'???',             emoji:'🔄', desc:'???',                                   rew:'+3000G & XP +1500',   hidden:true, realName:'強くてニューゲーム', realDesc:'2周目に突入する', check:function(){return getLegendNgCount()>=1;}, reward:function(){setGold(getGold()+3000);addXPRaw(1500);}},
+  {id:'ach_legend_ng3',      name:'???',             emoji:'♾️', desc:'???',                                   rew:'+10000G & XP +5000',  hidden:true, realName:'無限の塔', realDesc:'3周目に突入する', check:function(){return getLegendNgCount()>=2;}, reward:function(){setGold(getGold()+10000);addXPRaw(5000);}},
 ];
 
 // raw XP add without sleep modifier (for achievement rewards)
@@ -7779,7 +7790,7 @@ initLoanTick();
       <div class="hb-p">時給はスキルLvの合計に応じて30段階で上昇（90G〜8,000G/h）。無職→日雇い→アルバイト→…→社長→CEO→伝説の経営者まで。「換金」ボタンでゴールドに変換できます。</div>
     </div>
     <div class="hb-section"><div class="hb-h">📈 資産運用</div>
-      <div class="hb-p"><strong style="color:#38bdf8;">株式</strong>: 株価が日々変動。複数口購入・売却可能。S&P500のようにリアルな値動き。<br><strong style="color:#4ade80;">不動産</strong>: 複数物件保有可。家賃は月1回回収。物件は経年で減価し、売却時は時価。<br><strong style="color:#c084fc;">事業</strong>: 街の人口＝雇用可能人数。大企業ほど大量の従業員が必要。<br><strong style="color:#fbbf24;">生活水準</strong>: 毎日コストがかかるがXP倍率ボーナス。<br>事業収入は毎日「📥 受け取る」で獲得。</div>
+      <div class="hb-p"><strong style="color:#38bdf8;">株式</strong>: 株価が日々変動。複数口購入・売却可能。F&E50のようにリアルな値動き。<br><strong style="color:#4ade80;">不動産</strong>: 複数物件保有可。家賃は月1回回収。物件は経年で減価し、売却時は時価。<br><strong style="color:#c084fc;">事業</strong>: 街の人口＝雇用可能人数。大企業ほど大量の従業員が必要。<br><strong style="color:#fbbf24;">生活水準</strong>: 毎日コストがかかるがXP倍率ボーナス。<br>事業収入は毎日「📥 受け取る」で獲得。</div>
     </div>
     <div class="hb-section"><div class="hb-h">🧬 スキルツリーの行動解放</div>
       <div class="hb-p">スキルLvが上がると資産運用の選択肢が解放されます。例: 戦略思考Lv2 → 株式投資が解放。スキルを育てるほどできることが増えます。</div>
@@ -8373,8 +8384,35 @@ if('serviceWorker' in navigator){
 // ================================================================
 
 // ---------- 勇者生成 ----------
-function getLegendData(){return ls_get('legend_data')||{clearedRooms:[],defeatedBosses:[],currentRun:null};}
+function getLegendData(){return ls_get('legend_data')||{clearedRooms:[],defeatedBosses:[],currentRun:null,ngCount:0};}
 function setLegendData(v){ls_set('legend_data',v);}
+function getLegendNgCount(){ return getLegendData().ngCount || 0; }
+
+// NG+: 周回数に応じて敵HP・DRを強化したマップを返す
+function getActiveDungeonMapNg(){
+  var dm = JSON.parse(JSON.stringify(getActiveDungeonMap()));
+  var ng = getLegendNgCount();
+  if(ng <= 0) return dm;
+  var hpMult = 1 + ng * 0.5;   // 2周目×1.5、3周目×2.0…
+  var drBonus = ng;             // 2周目DR+1、3周目DR+2…
+  dm.nodes.forEach(function(node){
+    if(!node.enemies) return;
+    node.enemies = node.enemies.map(function(e){
+      var ne = JSON.parse(JSON.stringify(e));
+      ne.hp = Math.round(ne.hp * hpMult);
+      if(ne.damageReduce !== undefined) ne.damageReduce += drBonus;
+      if(ne.healAmount) ne.healAmount = Math.round(ne.healAmount * hpMult);
+      if(ne.splitInto) ne.splitInto = ne.splitInto.map(function(s){
+        var ns = JSON.parse(JSON.stringify(s));
+        ns.hp = Math.round(ns.hp * hpMult);
+        if(ns.damageReduce !== undefined) ns.damageReduce += drBonus;
+        return ns;
+      });
+      return ne;
+    });
+  });
+  return dm;
+}
 
 function classifyHero(dayData, dateStr){
   var blocks = dayData.blocks || [];
@@ -8430,19 +8468,17 @@ function classifyHero(dayData, dateStr){
   return jobMap[topCat] || {job:'回復士', color:'#86efac', emoji:'💚', rarity:'common'};
 }
 
-function calcHeroStats(dayData){
+function calcHeroStats(dayData, streakLv){
   var blocks = dayData.blocks || [];
   var totalMin = 0;
-  var maxSession = 0;
   blocks.forEach(function(b){
     var dur = t2m(b.end) - t2m(b.start);
-    if(dur > 0){ totalMin += dur; if(dur > maxSession) maxSession = dur; }
+    if(dur > 0) totalMin += dur;
   });
-  var totalHours = totalMin / 60;
-  var level = Math.max(1, Math.floor(totalHours));
-  var mult = 1 + (level - 1) * 0.15;
+  // Lvは連続記録日数ベース（引数で渡す）、なければ時間ベースのフォールバック
+  var level = (streakLv !== undefined) ? streakLv : Math.max(1, Math.floor(totalMin / 60));
+  level = Math.max(1, level);
   var cls = classifyHero(dayData, '');
-
   return {
     level: level,
     atk: level,
@@ -8451,15 +8487,25 @@ function calcHeroStats(dayData){
 }
 
 function generateHeroes(){
-  // 過去N日の記録から勇者を生成（ゴールドで拡張可能）
   var heroes = [];
   var range = getHeroRange();
-  var today = todayStr();
+  // 各日付の連続記録数を計算（その日から過去に何日続いているか）
   for(var i = 1; i <= range; i++){
     var d = new Date(); d.setDate(d.getDate() - i);
     var ds = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     var dayData = getDayData(ds);
-    var stats = calcHeroStats(dayData);
+    // その日の連続記録数を数える（その日を含めて過去に何日連続か）
+    var streak = 0;
+    if(dayData.blocks.length > 0 || dayData.sleepScore !== null){
+      var check = ds;
+      for(var j = 0; j < 400; j++){
+        var cd = getDayData(check);
+        if(cd.blocks.length > 0 || cd.sleepScore !== null){ streak++; }
+        else { break; }
+        check = addDays(check, -1);
+      }
+    }
+    var stats = calcHeroStats(dayData, streak > 0 ? streak : 0);
     heroes.push({
       date: ds,
       label: (d.getMonth()+1)+'月'+d.getDate()+'日',
@@ -9818,7 +9864,7 @@ function renderLegendMap(root){
   }
   var party = legendState.selectedHeroes;
   var partyJobs = party.map(function(h){return h.job;});
-  var dm = getActiveDungeonMap();
+  var dm = getActiveDungeonMapNg();
   var clearedNodes = legendState.clearedNodes || [];
   var visitedNodes = legendState.visitedNodes || [];
   var nodeById = {};
@@ -9939,7 +9985,10 @@ function renderLegendMap(root){
   h.push('<div style="'+F+'">');
   // タイトルバナー（すれ違い伝説風）
   h.push('<div style="background:linear-gradient(180deg,#f5e4a0,#d4b060);border:3px solid #8b6810;border-radius:8px;padding:6px 12px;text-align:center;margin-bottom:8px;box-shadow:0 3px 8px rgba(0,0,0,.5);">');
-  h.push('<div style="font-size:1.0rem;color:#2a1400;font-weight:700;text-shadow:1px 1px 0 rgba(255,255,200,.5);">🏰 '+dm.name+'</div>');
+  var _ng = getLegendNgCount();
+  var _ngLabel = _ng > 0 ? ' <span style="background:#c084fc;color:#fff;font-size:.52rem;padding:1px 6px;border-radius:4px;vertical-align:middle;font-weight:700;">'+_ng+'周目</span>' : '';
+  h.push('<div style="font-size:1.0rem;color:#2a1400;font-weight:700;text-shadow:1px 1px 0 rgba(255,255,200,.5);">🏰 '+dm.name+_ngLabel+'</div>');
+  if(_ng > 0){ h.push('<div style="font-size:.52rem;color:#7a3800;margin-top:1px;">💀 敵HP ×'+(1+_ng*0.5).toFixed(1)+' ／ 防御力 +'+_ng+'</div>'); }
   h.push('</div>');
   // パーティー
   if(party.length>0){
@@ -9993,6 +10042,7 @@ function legendSelectNode(nodeId){
   legendState.currentNodeId = nodeId;
   legendState.phase = 'battle';
   battleState.party = [];
+  setTimeout(function(){ checkAchievements(); }, 300);
   renderLegend();
 }
 
@@ -10244,7 +10294,7 @@ function renderMapEditor(root){
 
 function renderLegendBattle(root){
   var nodeId = legendState.currentNodeId;
-  var node = getActiveDungeonMap().nodes.find(function(n){return n.id===nodeId;});
+  var node = getActiveDungeonMapNg().nodes.find(function(n){return n.id===nodeId;});
   if(!node){ legendState.phase='map'; renderLegend(); return; }
   // ノードIDが同じなら保存済みHPを復元、異なるならinitして新バトル開始
   var nodeId = legendState.currentNodeId;
@@ -10255,6 +10305,9 @@ function renderLegendBattle(root){
     if(currentEnemyNames !== nodeEnemyNames) needInit = true;
   }
   if(needInit){
+    // 累計勇者数カウント
+    var heroCount = legendState.selectedHeroes.length;
+    ls_set('legend_total_heroes', (ls_get('legend_total_heroes')||0) + heroCount);
     initBattle(legendState.selectedHeroes, node.enemies);
     // 保存済みHPがあれば復元（マップから戻ってきた場合）
     restoreEnemyHp(nodeId);
@@ -11960,20 +12013,36 @@ function saveBattleClear(){
     if(isBoss3node){
       toast('🌀 虚無神を討伐！世界に光が戻った…！','ok');
       setTimeout(function(){ toast('✨ 真の英雄として歴史に名を刻んだ！','ok'); }, 1800);
+      setTimeout(function(){ checkAchievements(); }, 500);
     } else if(isBoss2node){
       var map3 = getActiveDungeonMap();
       var b3 = map3.nodes.find(function(n){return n.id==='boss3';});
       if(b3) b3.locked = false;
-      toast('👑 怠惰の王を討伐！…しかし深淵から虚無が溢れ出す…！','ok');
-      setTimeout(function(){ toast('🌀 更なる扉が開いた…「虚無神」が目覚める！','warn'); }, 1800);
+      // NG+：周回数を増やしてマップをリセット
+      var ldNg = getLegendData();
+      ldNg.ngCount = (ldNg.ngCount || 0) + 1;
+      setLegendData(ldNg);
+      legendState.clearedNodes = [];
+      legendState.enemyHpSave = {};
+      // boss2を再ロック
+      var mapNg = getActiveDungeonMap();
+      var boss2node = mapNg.nodes.find(function(n){return n.id==='boss2';});
+      if(boss2node) boss2node.locked = true;
+      var ngNum = ldNg.ngCount;
+      var hpMult = (1 + ngNum * 0.5).toFixed(1);
+      toast('👑 怠惰の王を討伐！塔が再び目覚めた…','ok');
+      setTimeout(function(){ toast('🔄 '+ngNum+'周目突入！敵HP ×'+hpMult+' ／ 防御力 +'+ngNum,'warn'); }, 1800);
+      setTimeout(function(){ checkAchievements(); }, 500);
     } else if(isBoss1){
       var map2 = getActiveDungeonMap();
       var b2 = map2.nodes.find(function(n){return n.id==='boss2';});
       if(b2) b2.locked = false;
       toast('🏆 ボスを撃破！…しかし、奥から禍々しい気配が！','ok');
       setTimeout(function(){ toast('👑 新たな扉が開いた…「怠惰の王」が待ち受ける！','warn'); }, 1800);
+      setTimeout(function(){ checkAchievements(); }, 500);
     } else {
       toast('🏆 ボスを撃破！塔がリセットされた！','ok');
+      setTimeout(function(){ checkAchievements(); }, 500);
     }
   }
 }
@@ -11995,7 +12064,7 @@ function legendRestartBattle(){
   if(node){ initBattle(legendState.selectedHeroes, node.enemies); renderLegend(); }
   else { legendState.phase='map'; renderLegend(); }
 }
-function legendRetry(){ legendRestartBattle(); }
+function legendRetry(){ /* リトライ削除 */ }
 function legendBackToMap(){
   // battleStateを完全リセット
   battleState.party = [];
