@@ -447,8 +447,9 @@ select.sel{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .toast.err{border-color:var(--rose);}
 
 /* floating xp */
-.xp-float{position:fixed;font-family:'DotGothic16',monospace;font-size:1rem;color:var(--amber);pointer-events:none;z-index:999;animation:floatUp 1.2s ease forwards;}
-@keyframes floatUp{0%{opacity:1;transform:translateY(0) scale(1);}100%{opacity:0;transform:translateY(-60px) scale(1.3);}}
+.xp-float{position:fixed;font-family:'DotGothic16',monospace;font-size:1.3rem;font-weight:700;color:#fbbf24;text-shadow:0 0 8px rgba(251,191,36,0.8),0 2px 4px rgba(0,0,0,0.8);pointer-events:none;z-index:9999;animation:floatUp 1.4s cubic-bezier(0.2,0.8,0.4,1) forwards;}
+.gold-float{position:fixed;font-family:'DotGothic16',monospace;font-size:1.1rem;font-weight:700;color:#4ade80;text-shadow:0 0 8px rgba(74,222,128,0.8),0 2px 4px rgba(0,0,0,0.8);pointer-events:none;z-index:9999;animation:floatUp 1.4s cubic-bezier(0.2,0.8,0.4,1) forwards;}
+@keyframes floatUp{0%{opacity:0;transform:translateY(0) scale(0.6);}15%{opacity:1;transform:translateY(-10px) scale(1.2);}70%{opacity:1;transform:translateY(-50px) scale(1);}100%{opacity:0;transform:translateY(-80px) scale(0.9);}}
 
 /* ===== ECONOMY / WAGE ===== */
 .eco-bar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;}
@@ -727,7 +728,55 @@ select.sel{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .tut-flow{display:flex;align-items:center;justify-content:center;gap:6px;margin:12px 0;flex-wrap:wrap;}
 .tut-flow .tf-node{background:var(--s3);border:1px solid var(--border);padding:4px 10px;border-radius:8px;font-size:.62rem;font-weight:700;color:var(--text);}
 .tut-flow .tf-arrow{color:var(--cyan);font-size:.7rem;}
+
+@keyframes slimeWobble {
+  0%   { transform: scale(1,1); }
+  10%  { transform: scale(1.07,0.93); }
+  20%  { transform: scale(0.94,1.08); }
+  35%  { transform: scale(1.05,0.95); }
+  50%  { transform: scale(0.97,1.04); }
+  65%  { transform: scale(1.03,0.97); }
+  80%  { transform: scale(0.99,1.01); }
+  100% { transform: scale(1,1); }
+}
+.slime-wobble {
+  animation: slimeWobble 0.6s ease-out;
+  transform-origin: center center;
+}
 </style>
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js";
+  import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAets4vwXgD4OHa1aPLMOjMJ_1cTv5vYAE",
+    authDomain: "timeflow-cd9ae.firebaseapp.com",
+    projectId: "timeflow-cd9ae",
+    storageBucket: "timeflow-cd9ae.firebasestorage.app",
+    messagingSenderId: "641732156175",
+    appId: "1:641732156175:web:283b0fce2b7afd020b7c7a"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const provider = new GoogleAuthProvider();
+
+  // グローバル公開
+  window._fb = { app, auth, db, provider, signInWithPopup, signOut, onAuthStateChanged, doc, getDoc, setDoc };
+
+  // 認証状態監視
+  onAuthStateChanged(auth, (user) => {
+    window._fb.currentUser = user;
+    if (window.onFirebaseAuthChange) window.onFirebaseAuthChange(user);
+  });
+
+  // SDK準備完了フラグ
+  window._fbReady = true;
+  if (window.onFirebaseReady) window.onFirebaseReady();
+</script>
 </head>
 <body>
 
@@ -745,6 +794,9 @@ select.sel{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
     <div class="streak-pill">🔥 <span id="navStreak">0</span>日</div>
     <div class="streak-pill" id="rebirthPill" style="display:none;border-color:rgba(192,132,252,.4);"></div>
   
+    <div id="syncPill" onclick="cloudLoginOrMenu()" style="display:flex;align-items:center;gap:4px;padding:5px 10px;border:1px solid rgba(148,163,184,.3);border-radius:999px;background:rgba(148,163,184,.08);cursor:pointer;font-size:.7rem;color:var(--muted);transition:all .2s;" title="クラウド同期">
+      <span id="syncIcon">☁️</span><span id="syncText" style="font-family:'M PLUS Rounded 1c',sans-serif;">ログイン</span>
+    </div>
     <button class="help-btn" onclick="openHelp()" title="ヘルプ">?</button></div>
 </nav>
 
@@ -2319,7 +2371,7 @@ const BUILDINGS = [
 
 const WAGE_TIERS = [
   {label:'無職',           totalLv:0,   wage:90},
-  {label:'日雇い労働者',    totalLv:2,   wage:150},
+  {label:'見習い見習い',    totalLv:2,   wage:150},
   {label:'見習い',          totalLv:4,   wage:220},
   {label:'アルバイト',      totalLv:6,   wage:300},
   {label:'契約社員',        totalLv:9,   wage:400},
@@ -2402,6 +2454,12 @@ function addBlock(forceOverwrite){
   var sm=t2m(s), em=t2m(e);
   var crossesMidnight=(em<=sm);
 
+  // 日またぎの場合でも24時間を超える入力を弾く
+  if(crossesMidnight){
+    var dur = (1440 - sm) + em;
+    if(dur >= 1440){toast('24時間を超える入力はできません','err');return;}
+  }
+
   if(!crossesMidnight){
     // Same-day block: overlap check on current date
     var day=getDayData(currentDate);
@@ -2480,6 +2538,8 @@ function addBlock(forceOverwrite){
     addXP(xpGain,block);
     var overMsg=overlapping.length>0?'（上書き）':'';
     toast(catLabel(c)+' +'+xpGain+'XP'+bonusMsg+overMsg);
+    var goldGain=Math.round(calcWage()*(dur/60));
+    spawnFloatNearClock(xpGain, goldGain);
     onBlockAdded(c);
   } else {
     // Crosses midnight: split into today + tomorrow
@@ -2563,12 +2623,24 @@ function addBlock(forceOverwrite){
     onBlockAdded(c);
   }
 
-  // Advance times
+  // Advance times: 終了時刻をスタートにセット、次の空き時間の終わりをエンドにセット
   document.getElementById('startTime').value=e;
-  var nem=t2m(e)+60;
-  var snapM=Math.round(Math.min(nem,1430)/currentTimeStep)*currentTimeStep;
+  var nextStartM=t2m(e);
+  // 現在日のブロックから次の埋まっている時間帯を探す
+  var dayAfter=getDayData(currentDate);
+  var nextBlockStart=1440;
+  for(var _i=0;_i<dayAfter.blocks.length;_i++){
+    var _b=dayAfter.blocks[_i];
+    var _bs=t2m(_b.start);
+    if(_bs>nextStartM && _bs<nextBlockStart) nextBlockStart=_bs;
+  }
+  // 次のブロックまでの空き時間、ただし最大2時間
+  var autoEndM=Math.min(nextStartM+120, nextBlockStart);
+  var snapM=Math.round(Math.min(autoEndM,1430)/currentTimeStep)*currentTimeStep;
   if(snapM>=1440)snapM=1440-currentTimeStep;
+  if(snapM<=nextStartM){snapM=Math.round(Math.min(nextStartM+60,1430)/currentTimeStep)*currentTimeStep;}
   document.getElementById('endTime').value=String(Math.floor(snapM/60)).padStart(2,'0')+':'+String(snapM%60).padStart(2,'0');
+  if(window._dialSetTime){window._dialSetTime('start',e);window._dialSetTime('end',String(Math.floor(snapM/60)).padStart(2,'0')+':'+String(snapM%60).padStart(2,'0'));}
 
   renderP1();
 }
@@ -2928,22 +3000,37 @@ function addXP(amount,blockEl){
   setTotalXP(next);
   checkLevelUp(prev,next);
   updateNav();
-  // float
-  if(blockEl){
-    const x=window.innerWidth/2+Math.random()*100-50;
-    const y=window.innerHeight/2;
-    spawnFloatXP(x,y,'+'+amount+' XP');
-  }
+  // float handled by spawnFloatNearClock in addBlock
 }
 
-function spawnFloatXP(x,y,text){
+function spawnFloatXP(x,y,text,cls){
   const el=document.createElement('div');
-  el.className='xp-float';
+  el.className=cls||'xp-float';
   el.textContent=text;
   el.style.left=x+'px';
   el.style.top=y+'px';
   document.body.appendChild(el);
-  setTimeout(()=>el.remove(),1200);
+  setTimeout(()=>el.remove(),1400);
+}
+function spawnFloatNearClock(xpAmount, goldAmount){
+  var cv=document.getElementById('clockCanvas');
+  var rect=cv?cv.getBoundingClientRect():null;
+  var cx=rect?rect.left+rect.width/2:window.innerWidth/2;
+  var cy=rect?rect.top+rect.height/2:window.innerHeight/2;
+  // XPポップ（少し左）
+  if(xpAmount>0){
+    var jx=cx + (Math.random()-0.5)*60;
+    var jy=cy + (Math.random()-0.5)*40;
+    spawnFloatXP(jx,jy,'+'+xpAmount+' XP','xp-float');
+  }
+  // Gポップ（少し右、少し遅れて）
+  if(goldAmount>0){
+    setTimeout(function(){
+      var jx2=cx + (Math.random()-0.5)*60 + 20;
+      var jy2=cy + (Math.random()-0.5)*40 + 10;
+      spawnFloatXP(jx2,jy2,'+'+goldAmount+' G','gold-float');
+    },120);
+  }
 }
 
 function getLevel(xp){let lv=LEVELS[0];for(const l of LEVELS)if(xp>=l.min)lv=l;return lv;}
@@ -3568,6 +3655,11 @@ function renderEffort(blocks){
       return;
     }
     info.style.display='block';
+    if(dur>=1440){
+      info.innerHTML='<span style="color:var(--red);">⚠ 24時間を超えています</span>'+
+        ' <button onclick="cancelClockDrag()" style="margin-left:8px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--s2);color:var(--muted);font-size:.7rem;cursor:pointer;">✕</button>';
+      return;
+    }
     info.innerHTML=mToTime(dispS)+' → '+mToTime(dispE)+' ('+Math.floor(dur/60)+'h'+String(dur%60).padStart(2,'0')+'m)'+
       ' <button onclick="applyClockDrag()" style="margin-left:8px;padding:4px 12px;border:1px solid rgba(74,222,128,.4);border-radius:6px;background:rgba(74,222,128,.12);color:var(--green);font-size:.7rem;font-weight:700;cursor:pointer;">✓ 反映</button>'+
       ' <button onclick="cancelClockDrag()" style="margin-left:4px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--s2);color:var(--muted);font-size:.7rem;cursor:pointer;">✕</button>';
@@ -4886,6 +4978,14 @@ function toast(msg,type='ok'){
 
 // Emit event on block add
 function onBlockAdded(cat){
+  // スライムぷるぷるアニメーション
+  var _cv=document.getElementById('clockCanvas');
+  if(_cv){
+    _cv.classList.remove('slime-wobble');
+    void _cv.offsetWidth; // reflow
+    _cv.classList.add('slime-wobble');
+    _cv.addEventListener('animationend',function(){_cv.classList.remove('slime-wobble');},{once:true});
+  }
   const prevWage=calcWage();
   const dom=DOMAINS.find(d=>d.cat===cat);
   if(dom){
@@ -5641,11 +5741,11 @@ addXP = function(amount, blockEl){
 const STOCKS = [
   {id:'stk_idx',name:'F&E50ファンド',icon:'📊',desc:'米国大型株に広く分散。長期積立の定番。',basePrice:5000,volatility:0.015,drift:0.0003,risk:'低',req:null},
   {id:'stk_topix',name:'POPEXファンド',icon:'🗾',desc:'国内上場銘柄に幅広く分散。国内経済と連動。',basePrice:3000,volatility:0.012,drift:0.0002,risk:'低',req:null},
-  {id:'stk_nasdaq',name:'NASDAQ100',icon:'💻',desc:'ハイテク大型株に集中。成長期待大。',basePrice:8000,volatility:0.025,drift:0.0005,risk:'中',req:{skill:'strategy',lv:2}},
+  {id:'stk_nasdaq',name:'ハイテク100ファンド',icon:'💻',desc:'ハイテク大型株に集中。成長期待大。',basePrice:8000,volatility:0.025,drift:0.0005,risk:'中',req:{skill:'strategy',lv:2}},
   {id:'stk_emerging',name:'新興国株ファンド',icon:'🌍',desc:'新興国に広く分散投資。高成長・高リスク。',basePrice:4000,volatility:0.03,drift:0.0002,risk:'中',req:{skill:'strategy',lv:2}},
   {id:'stk_reit',name:'グローバルREIT',icon:'🏗️',desc:'世界の不動産投資信託。配当利回り高め。',basePrice:6000,volatility:0.018,drift:0.0003,risk:'中',req:{skill:'depth',lv:2}},
   {id:'stk_crypto',name:'暗号資産ファンド',icon:'₿',desc:'仮想通貨に連動。ハイリスク・ハイリターン。',basePrice:10000,volatility:0.06,drift:0.0004,risk:'高',req:{skill:'depth',lv:2}},
-  {id:'stk_leverage',name:'レバレッジNASDAQ(3倍)',icon:'⚡',desc:'NASDAQ100の3倍値動き。暴落リスク極大。',basePrice:12000,volatility:0.075,drift:0.0006,risk:'極高',req:{skill:'strategy',lv:3}},
+  {id:'stk_leverage',name:'レバレッジ・ハイテク100(3倍)',icon:'⚡',desc:'ハイテク100ファンドの3倍値動き。暴落リスク極大。',basePrice:12000,volatility:0.075,drift:0.0006,risk:'極高',req:{skill:'strategy',lv:3}},
   {id:'stk_venture',name:'ベンチャーキャピタル',icon:'🚀',desc:'未上場企業に出資。大化けか紙切れか。',basePrice:25000,volatility:0.16,drift:0.0003,risk:'極高',req:{skill:'strategy',lv:3}},
 ];
 
@@ -12134,6 +12234,262 @@ function legendBackToParty(){
   legendState.currentNodeId = null;
   renderLegend();
 }
+</script>
+
+<script>
+// ========================================================================
+// Firebase Cloud Sync
+// ========================================================================
+(function(){
+  var SYNC_DEBOUNCE_MS = 2000;
+  var syncTimer = null;
+  var isApplying = false; // Firestore→ローカル適用中フラグ（書き戻し防止）
+  var pendingWrite = false;
+
+  function updateSyncUI(state){
+    var icon = document.getElementById('syncIcon');
+    var text = document.getElementById('syncText');
+    var pill = document.getElementById('syncPill');
+    if(!icon||!text||!pill) return;
+    if(state==='logged-out'){
+      icon.textContent='☁️'; text.textContent='ログイン';
+      pill.style.borderColor='rgba(148,163,184,.3)';
+      pill.style.background='rgba(148,163,184,.08)';
+      pill.style.color='var(--muted)';
+    } else if(state==='synced'){
+      icon.textContent='✅'; text.textContent='同期済み';
+      pill.style.borderColor='rgba(74,222,128,.35)';
+      pill.style.background='rgba(74,222,128,.08)';
+      pill.style.color='var(--green)';
+    } else if(state==='syncing'){
+      icon.textContent='🔄'; text.textContent='同期中';
+      pill.style.borderColor='rgba(56,189,248,.35)';
+      pill.style.background='rgba(56,189,248,.08)';
+      pill.style.color='var(--cyan)';
+    } else if(state==='error'){
+      icon.textContent='⚠️'; text.textContent='同期エラー';
+      pill.style.borderColor='rgba(251,113,133,.35)';
+      pill.style.background='rgba(251,113,133,.08)';
+      pill.style.color='#fb7185';
+    } else if(state==='offline'){
+      icon.textContent='📡'; text.textContent='オフライン';
+      pill.style.borderColor='rgba(148,163,184,.3)';
+      pill.style.background='rgba(148,163,184,.08)';
+      pill.style.color='var(--muted)';
+    }
+  }
+
+  // tf3_で始まる全データを収集してJSON化
+  function collectAllData(){
+    var data = {};
+    for(var i=0;i<localStorage.length;i++){
+      var k = localStorage.key(i);
+      if(k && k.indexOf('tf3_')===0){
+        data[k] = localStorage.getItem(k);
+      }
+    }
+    return data;
+  }
+
+  // Firestoreへ書き込み
+  async function pushToCloud(){
+    if(!window._fb || !window._fb.currentUser) return;
+    var user = window._fb.currentUser;
+    try{
+      updateSyncUI('syncing');
+      var data = collectAllData();
+      var ref = window._fb.doc(window._fb.db, 'users', user.uid, 'timeflow', 'all');
+      await window._fb.setDoc(ref, {
+        data: JSON.stringify(data),
+        updatedAt: new Date().toISOString(),
+        keyCount: Object.keys(data).length
+      });
+      updateSyncUI('synced');
+    }catch(e){
+      console.error('同期エラー:', e);
+      updateSyncUI('error');
+    }
+  }
+
+  // Firestoreから読み込み、ローカルに反映
+  async function pullFromCloud(){
+    if(!window._fb || !window._fb.currentUser) return false;
+    var user = window._fb.currentUser;
+    try{
+      updateSyncUI('syncing');
+      var ref = window._fb.doc(window._fb.db, 'users', user.uid, 'timeflow', 'all');
+      var snap = await window._fb.getDoc(ref);
+      if(snap.exists()){
+        var cloud = snap.data();
+        var cloudData = JSON.parse(cloud.data);
+        // 既存tf3_キー削除＋クラウド側で上書き
+        isApplying = true;
+        var keysToRemove = [];
+        for(var i=0;i<localStorage.length;i++){
+          var k = localStorage.key(i);
+          if(k && k.indexOf('tf3_')===0) keysToRemove.push(k);
+        }
+        keysToRemove.forEach(function(k){ localStorage.removeItem(k); });
+        Object.keys(cloudData).forEach(function(k){
+          localStorage.setItem(k, cloudData[k]);
+        });
+        isApplying = false;
+        updateSyncUI('synced');
+        return true;
+      } else {
+        // クラウドに未保存 → ローカルを初回アップロード
+        await pushToCloud();
+        return false;
+      }
+    }catch(e){
+      console.error('読み込みエラー:', e);
+      updateSyncUI('error');
+      isApplying = false;
+      return false;
+    }
+  }
+
+  // ローカルストレージ変更を監視（ls_setフック）
+  var _origLsSet = window.ls_set;
+  if(_origLsSet){
+    window.ls_set = function(k, v){
+      _origLsSet(k, v);
+      if(!isApplying && window._fb && window._fb.currentUser){
+        scheduleSync();
+      }
+    };
+  }
+  // localStorage.setItem直接呼び出しもフック
+  var _origSetItem = localStorage.setItem.bind(localStorage);
+  localStorage.setItem = function(k, v){
+    _origSetItem(k, v);
+    if(!isApplying && k && k.indexOf('tf3_')===0 && window._fb && window._fb.currentUser){
+      scheduleSync();
+    }
+  };
+  var _origRemoveItem = localStorage.removeItem.bind(localStorage);
+  localStorage.removeItem = function(k){
+    _origRemoveItem(k);
+    if(!isApplying && k && k.indexOf('tf3_')===0 && window._fb && window._fb.currentUser){
+      scheduleSync();
+    }
+  };
+
+  function scheduleSync(){
+    if(syncTimer) clearTimeout(syncTimer);
+    pendingWrite = true;
+    updateSyncUI('syncing');
+    syncTimer = setTimeout(function(){
+      pendingWrite = false;
+      pushToCloud();
+    }, SYNC_DEBOUNCE_MS);
+  }
+
+  // ログインボタン
+  window.cloudLoginOrMenu = async function(){
+    if(!window._fbReady){
+      toast('Firebase準備中...少し待ってください','err');
+      return;
+    }
+    if(!window._fb.currentUser){
+      // 未ログイン → ログイン
+      try{
+        await window._fb.signInWithPopup(window._fb.auth, window._fb.provider);
+      }catch(e){
+        console.error(e);
+        if(e.code !== 'auth/popup-closed-by-user'){
+          toast('ログインに失敗しました: '+e.message,'err');
+        }
+      }
+    } else {
+      // ログイン済み → メニュー表示
+      showSyncMenu();
+    }
+  };
+
+  function showSyncMenu(){
+    var user = window._fb.currentUser;
+    var existing = document.getElementById('syncMenu');
+    if(existing) existing.remove();
+    var menu = document.createElement('div');
+    menu.id='syncMenu';
+    menu.style.cssText='position:fixed;top:56px;right:10px;background:var(--s);border:1px solid var(--border);border-radius:12px;padding:12px;z-index:10000;box-shadow:0 10px 30px rgba(0,0,0,.5);min-width:220px;';
+    menu.innerHTML = 
+      '<div style="font-size:.7rem;color:var(--muted);margin-bottom:6px;">ログイン中</div>'+
+      '<div style="font-size:.75rem;color:var(--text);margin-bottom:10px;word-break:break-all;">'+(user.email||user.displayName||'')+'</div>'+
+      '<button onclick="cloudManualSync()" style="width:100%;padding:8px;margin-bottom:6px;border:1px solid var(--border);border-radius:8px;background:var(--s2);color:var(--text);font-family:inherit;font-size:.75rem;cursor:pointer;">🔄 今すぐ同期</button>'+
+      '<button onclick="cloudPullNow()" style="width:100%;padding:8px;margin-bottom:6px;border:1px solid var(--border);border-radius:8px;background:var(--s2);color:var(--text);font-family:inherit;font-size:.75rem;cursor:pointer;">⬇ クラウドから読み込み</button>'+
+      '<button onclick="cloudLogout()" style="width:100%;padding:8px;border:1px solid rgba(251,113,133,.3);border-radius:8px;background:rgba(251,113,133,.08);color:#fb7185;font-family:inherit;font-size:.75rem;cursor:pointer;">ログアウト</button>';
+    document.body.appendChild(menu);
+    setTimeout(function(){
+      document.addEventListener('click', function cls(e){
+        if(!menu.contains(e.target) && e.target.id!=='syncPill' && !document.getElementById('syncPill').contains(e.target)){
+          menu.remove();
+          document.removeEventListener('click', cls);
+        }
+      });
+    }, 100);
+  }
+
+  window.cloudManualSync = async function(){
+    var m=document.getElementById('syncMenu'); if(m) m.remove();
+    await pushToCloud();
+    toast('☁️ 同期しました');
+  };
+
+  window.cloudPullNow = async function(){
+    var m=document.getElementById('syncMenu'); if(m) m.remove();
+    if(!confirm('クラウドのデータでローカルを上書きします。よろしいですか？')) return;
+    await pullFromCloud();
+    toast('⬇ クラウドから読み込みました');
+    setTimeout(function(){ location.reload(); }, 800);
+  };
+
+  window.cloudLogout = async function(){
+    var m=document.getElementById('syncMenu'); if(m) m.remove();
+    try{
+      await window._fb.signOut(window._fb.auth);
+      toast('ログアウトしました');
+    }catch(e){ console.error(e); }
+  };
+
+  // 認証状態変化時
+  window.onFirebaseAuthChange = async function(user){
+    if(user){
+      // 初回ログイン → クラウドから読み込み
+      var loaded = await pullFromCloud();
+      if(loaded){
+        // ローカルに反映済み → 画面再描画
+        toast('☁️ '+user.displayName+' としてログイン。同期済みデータを読み込みました');
+        setTimeout(function(){ location.reload(); }, 1200);
+      } else {
+        toast('☁️ '+user.displayName+' としてログイン');
+      }
+    } else {
+      updateSyncUI('logged-out');
+    }
+  };
+
+  // オフライン検知
+  window.addEventListener('online', function(){
+    if(window._fb && window._fb.currentUser){
+      updateSyncUI('synced');
+      if(pendingWrite) scheduleSync();
+    }
+  });
+  window.addEventListener('offline', function(){
+    updateSyncUI('offline');
+  });
+
+  // 初期表示
+  setTimeout(function(){
+    if(!navigator.onLine){
+      updateSyncUI('offline');
+    } else {
+      updateSyncUI('logged-out');
+    }
+  }, 300);
+})();
 </script>
 </body>
 </html>
