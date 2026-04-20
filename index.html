@@ -1222,7 +1222,7 @@ select.sel{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
     <button class="p3-stab" id="p3t_town" onclick="setP3Tab('town')">🏘️ 街</button>
     <button class="p3-stab" id="p3t_slot" onclick="setP3Tab('slot')">🎰 娯楽</button>
     <button class="p3-stab" id="p3t_loan" onclick="setP3Tab('loan')">🏦 消費者金融</button>
-    <button class="p3-stab" id="p3t_legend" onclick="setP3Tab('legend')">⚔️ 伝説</button>
+    <button class="p3-stab" id="p3t_legend" onclick="setP3Tab('legend')" style="display:none;">⚔️ 伝説</button>
     <button class="p3-stab" id="p3t_ach" onclick="setP3Tab('ach')">🏆 実績</button>
   </div>
 
@@ -1496,7 +1496,7 @@ select.sel{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
     </div>
   </div>
     <!-- PANEL: LEGEND -->
-  <div class="p3-panel" id="panel_legend">
+  <div class="p3-panel" id="panel_legend" style="display:none !important;">
     <div id="legendRoot"></div>
   </div>
 
@@ -7821,6 +7821,7 @@ function checkAchievements(){
   const unlocked=getUnlockedAchievements();
   let newlyUnlocked=false;
   ACHIEVEMENTS.forEach(ach=>{
+    if(ach.id.indexOf('ach_legend_')===0)return; // 伝説システム無効化中
     if(unlocked.includes(ach.id))return;
     try{
       if(ach.check()){
@@ -7839,7 +7840,7 @@ function renderAchievements(){
   const unlocked=getUnlockedAchievements();
   const el=document.getElementById('achGrid');
   if(!el)return;
-  el.innerHTML=ACHIEVEMENTS.map(function(ach){
+  el.innerHTML=ACHIEVEMENTS.filter(function(ach){return ach.id.indexOf('ach_legend_')!==0;}).map(function(ach){
     var isUl=unlocked.includes(ach.id);
     var isHidden=ach.hidden&&!isUl;
     var name=isHidden?'???':(ach.realName||ach.name);
@@ -12528,9 +12529,9 @@ function legendBackToParty(){
     menu.innerHTML = 
       '<div style="font-size:.7rem;color:var(--muted);margin-bottom:6px;">ログイン中</div>'+
       '<div style="font-size:.75rem;color:var(--text);margin-bottom:10px;word-break:break-all;">'+(user.email||user.displayName||'')+'</div>'+
-      '<button onclick="cloudManualSync()" style="width:100%;padding:8px;margin-bottom:6px;border:1px solid var(--border);border-radius:8px;background:var(--s2);color:var(--text);font-family:inherit;font-size:.75rem;cursor:pointer;">🔄 今すぐ同期</button>'+
-      '<button onclick="cloudPullNow()" style="width:100%;padding:8px;margin-bottom:6px;border:1px solid var(--border);border-radius:8px;background:var(--s2);color:var(--text);font-family:inherit;font-size:.75rem;cursor:pointer;">⬇ クラウドから読み込み</button>'+
-      '<button onclick="cloudLogout()" style="width:100%;padding:8px;border:1px solid rgba(251,113,133,.3);border-radius:8px;background:rgba(251,113,133,.08);color:#fb7185;font-family:inherit;font-size:.75rem;cursor:pointer;">ログアウト</button>';
+      '<button onclick="cloudPushNow()" style="width:100%;padding:10px;margin-bottom:6px;border:1px solid rgba(74,222,128,.4);border-radius:8px;background:rgba(74,222,128,.08);color:var(--green);font-family:inherit;font-size:.75rem;font-weight:700;cursor:pointer;text-align:left;">⬆ クラウドにアップロード<div style="font-size:.58rem;color:var(--muted2);font-weight:400;margin-top:2px;">このデバイスのデータをクラウドに保存</div></button>'+
+      '<button onclick="cloudPullNow()" style="width:100%;padding:10px;margin-bottom:6px;border:1px solid rgba(56,189,248,.4);border-radius:8px;background:rgba(56,189,248,.08);color:var(--cyan);font-family:inherit;font-size:.75rem;font-weight:700;cursor:pointer;text-align:left;">⬇ クラウドから読み込み<div style="font-size:.58rem;color:var(--muted2);font-weight:400;margin-top:2px;">クラウドのデータでローカルを上書き</div></button>'+
+      '<button onclick="cloudLogout()" style="width:100%;padding:8px;border:1px solid rgba(251,113,133,.3);border-radius:8px;background:rgba(251,113,133,.08);color:#fb7185;font-family:inherit;font-size:.7rem;cursor:pointer;">ログアウト</button>';
     document.body.appendChild(menu);
     setTimeout(function(){
       document.addEventListener('click', function cls(e){
@@ -12542,11 +12543,16 @@ function legendBackToParty(){
     }, 100);
   }
 
-  window.cloudManualSync = async function(){
+  window.cloudPushNow = async function(){
     var m=document.getElementById('syncMenu'); if(m) m.remove();
+    if(!confirm('このデバイスのデータをクラウドにアップロードします。\n（クラウド上の既存データは上書きされます）\nよろしいですか？')) return;
+    // 強制上書き（楽観的ロックを無視）
+    localStorage.removeItem('tf_sync_cloudAt');
     await pushToCloud();
-    toast('☁️ 同期しました');
+    toast('⬆ クラウドにアップロードしました');
   };
+  // 後方互換
+  window.cloudManualSync = window.cloudPushNow;
 
   window.cloudPullNow = async function(){
     var m=document.getElementById('syncMenu'); if(m) m.remove();
