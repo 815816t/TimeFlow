@@ -1039,6 +1039,7 @@ select.sel{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
           <div style="font-size:.75rem;font-weight:700;margin-bottom:8px;">📋 新しい目標</div>
           <input id="todoTitle" placeholder="目標のタイトル" maxlength="60" style="width:100%;padding:8px 10px;background:var(--s1);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.8rem;margin-bottom:6px;box-sizing:border-box;">
           <textarea id="todoDesc" placeholder="詳細メモ（任意）" maxlength="200" rows="2" style="width:100%;padding:8px 10px;background:var(--s1);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.7rem;resize:none;margin-bottom:6px;box-sizing:border-box;"></textarea>
+          <textarea id="todoDiary" placeholder="今の気持ち・状況メモ（任意、あとで1ヶ月ごとに振り返れます）" maxlength="300" rows="2" style="width:100%;padding:8px 10px;background:var(--s1);border:1px solid rgba(251,191,36,.3);border-radius:8px;color:var(--text);font-size:.7rem;resize:none;margin-bottom:6px;box-sizing:border-box;"></textarea>
           <div style="margin-bottom:8px;"><div class="inp-lbl" style="font-size:.6rem;">達成XP</div>
             <select id="todoXP" style="width:100%;padding:6px;background:var(--s1);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.75rem;">
               <option value="100">100 XP（小さい目標）</option>
@@ -1075,6 +1076,19 @@ select.sel{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
     <div class="cue-emoji" id="cueEmoji">📊</div>
     <div class="cue-text"><div class="cue-main" id="cueMain">統計を確認しよう</div><div class="cue-sub" id="cueSub">記録が積み重なるほど洞察が深まります</div></div>
   </div>
+
+  <!-- Report Generator Button -->
+  <div class="card" style="margin-bottom:14px;padding:14px;border:2px solid rgba(251,191,36,.25);background:linear-gradient(135deg,rgba(251,191,36,.08),rgba(56,189,248,.06));">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+      <span style="font-size:1.4rem;">📄</span>
+      <div style="flex:1;">
+        <div style="font-size:.85rem;font-weight:700;color:var(--text);">サマリーレポート</div>
+        <div style="font-size:.65rem;color:var(--muted2);">時間の使い方を1枚のレポートとして出力</div>
+      </div>
+    </div>
+    <button onclick="openReportModal()" style="width:100%;padding:10px;border:1px solid rgba(251,191,36,.4);border-radius:10px;background:rgba(251,191,36,.12);color:#fbbf24;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;">📋 レポートを作成</button>
+  </div>
+
 
   <div class="big-stats">
     <div class="bstat"><div class="bstat-icon">🔥</div><div class="bstat-val" id="bs_streak" style="color:var(--amber)">0</div><div class="bstat-lbl">継続</div><div class="bstat-sub" style="color:var(--muted2)">日</div></div>
@@ -2865,8 +2879,11 @@ function stopNowTrack(){
     var isEffort=catLookup(cat).effort;
     var isNoXP=NO_XP_CATS.includes(catBase(cat));
     var xpGain=isNoXP?0:(isEffort?Math.round(dur/60*XP_PER_EFFORT_HOUR):Math.round(dur/60*XP_PER_OTHER_HOUR));
-    addXP(xpGain,block,c);
+    addXP(xpGain,block,cat);
     toast('⏹ '+catLabel(cat)+' '+nt.start+'→'+endTime+' +'+xpGain+'XP');
+    var goldGain=Math.round(calcWage()*(dur/60));
+    spawnFloatNearClock(xpGain, goldGain);
+    onBlockAdded(cat);
   } else {
     // Crosses midnight - use addBlock's logic
     document.getElementById('startTime').value=nt.start;
@@ -7290,6 +7307,7 @@ function openAddTodo(){
   document.getElementById('todoAddForm').style.display='block';
   document.getElementById('todoTitle').value='';
   document.getElementById('todoDesc').value='';
+  var diary=document.getElementById('todoDiary');if(diary)diary.value='';
   document.getElementById('todoTitle').focus();
 }
 
@@ -7298,8 +7316,13 @@ function addTodoItem(){
   if(!title){toast('タイトルを入力してください','err');return;}
   var desc=document.getElementById('todoDesc').value.trim();
   var xp=parseInt(document.getElementById('todoXP').value)||500;
+  var initialDiary=(document.getElementById('todoDiary')||{value:''}).value.trim();
   var todos=getTodos();
-  todos.push({id:Date.now(),title:title,desc:desc,xp:xp,done:false,createdAt:todayStr()});
+  var newTodo={
+    id:Date.now(),title:title,desc:desc,xp:xp,done:false,createdAt:todayStr(),
+    diaries: initialDiary?[{date:todayStr(),text:initialDiary,monthNum:0}]:[]
+  };
+  todos.push(newTodo);
   setTodos(todos);
   document.getElementById('todoAddForm').style.display='none';
   toast('📋 目標を追加しました');
@@ -7344,7 +7367,11 @@ function renderTodos(){
   var html='';
   // Active goals
   active.forEach(function(t){
-    html+='<div style="background:var(--s1);border:1px solid rgba(74,222,128,.2);border-radius:12px;padding:12px 14px;">'+
+    var diaryCount=(t.diaries||[]).length;
+    var daysOld=daysSinceStr(t.createdAt);
+    var monthsPassed=Math.floor(daysOld/30);
+    var hasNewPrompt = monthsPassed>=1 && diaryCount<(monthsPassed+1);
+    html+='<div style="background:var(--s1);border:1px solid '+(hasNewPrompt?'rgba(251,191,36,.5)':'rgba(74,222,128,.2)')+';border-radius:12px;padding:12px 14px;'+(hasNewPrompt?'box-shadow:0 0 0 1px rgba(251,191,36,.15);':'')+'">'+
       '<div style="display:flex;align-items:center;gap:8px;">'+
         '<div style="font-size:1.2rem;cursor:pointer;" onclick="completeTodo('+t.id+')" title="達成！">⬜</div>'+
         '<div style="flex:1;">'+
@@ -7355,8 +7382,10 @@ function renderTodos(){
           '<div style="font-size:.75rem;font-weight:800;color:#4ade80;font-family:JetBrains Mono,monospace;">+'+t.xp+' XP</div>'+
           '<div style="font-size:.55rem;color:var(--muted);">'+t.createdAt+'〜</div>'+
         '</div>'+
+        '<button onclick="openDiary('+t.id+')" style="border:none;background:'+(hasNewPrompt?'rgba(251,191,36,.15)':'none')+';color:'+(hasNewPrompt?'#fbbf24':'var(--muted)')+';cursor:pointer;font-size:.9rem;padding:4px 8px;border-radius:6px;" title="日記">📖'+(diaryCount>0?'<span style="font-size:.55rem;margin-left:2px;font-weight:700;">'+diaryCount+'</span>':'')+'</button>'+
         '<button onclick="deleteTodo('+t.id+')" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:.7rem;padding:4px;">🗑</button>'+
       '</div>'+
+      (hasNewPrompt?'<div style="margin-top:8px;padding:8px 10px;background:rgba(251,191,36,.08);border:1px dashed rgba(251,191,36,.3);border-radius:8px;font-size:.65rem;color:#fbbf24;cursor:pointer;" onclick="openDiary('+t.id+')">📖 '+monthsPassed+'ヶ月経過！ 今の状況を書き残そう</div>':'')+
     '</div>';
   });
   // Done goals
@@ -12279,31 +12308,53 @@ function legendBackToParty(){
     }
   }
 
-  // tf3_で始まる全データを収集してJSON化
+  // 同期対象外のキー（デバイスごとに独立させる状態）
+  var SYNC_EXCLUDE = ['tf3_now_track'];
+  function isExcludedKey(k){
+    if(!k) return true;
+    if(SYNC_EXCLUDE.indexOf(k)>=0) return true;
+    return false;
+  }
+  // tf3_で始まる全データを収集してJSON化（同期対象外を除外）
   function collectAllData(){
     var data = {};
     for(var i=0;i<localStorage.length;i++){
       var k = localStorage.key(i);
-      if(k && k.indexOf('tf3_')===0){
+      if(k && k.indexOf('tf3_')===0 && !isExcludedKey(k)){
         data[k] = localStorage.getItem(k);
       }
     }
     return data;
   }
 
-  // Firestoreへ書き込み
+  // Firestoreへ書き込み（楽観的ロック付き）
   async function pushToCloud(){
     if(!window._fb || !window._fb.currentUser) return;
     var user = window._fb.currentUser;
     try{
       updateSyncUI('syncing');
-      var data = collectAllData();
+      // 書き込み前に最新のクラウドタイムスタンプを取得
       var ref = window._fb.doc(window._fb.db, 'users', user.uid, 'timeflow', 'all');
+      var snap = await window._fb.getDoc(ref);
+      if(snap.exists()){
+        var cloud = snap.data();
+        var localKnownAt = localStorage.getItem('tf_sync_cloudAt');
+        // 自分が知らない更新がクラウドにある場合（他デバイスが書き込んだ）
+        if(cloud.updatedAt && localKnownAt && cloud.updatedAt > localKnownAt){
+          console.warn('[sync] クラウドに他デバイスの新しいデータあり。書き込みを中断');
+          updateSyncUI('error');
+          toast('⚠ 他デバイスで更新されています。メニューから「クラウドから読み込み」を実行してください','err');
+          return;
+        }
+      }
+      var data = collectAllData();
+      var nowIso = new Date().toISOString();
       await window._fb.setDoc(ref, {
         data: JSON.stringify(data),
-        updatedAt: new Date().toISOString(),
+        updatedAt: nowIso,
         keyCount: Object.keys(data).length
       });
+      localStorage.setItem('tf_sync_cloudAt', nowIso);
       updateSyncUI('synced');
     }catch(e){
       console.error('同期エラー:', e);
@@ -12322,17 +12373,21 @@ function legendBackToParty(){
       if(snap.exists()){
         var cloud = snap.data();
         var cloudData = JSON.parse(cloud.data);
-        // 既存tf3_キー削除＋クラウド側で上書き
+        // 既存tf3_キー削除＋クラウド側で上書き（now_track等の除外キーは保持）
         isApplying = true;
         var keysToRemove = [];
         for(var i=0;i<localStorage.length;i++){
           var k = localStorage.key(i);
-          if(k && k.indexOf('tf3_')===0) keysToRemove.push(k);
+          if(k && k.indexOf('tf3_')===0 && !isExcludedKey(k)) keysToRemove.push(k);
         }
         keysToRemove.forEach(function(k){ localStorage.removeItem(k); });
         Object.keys(cloudData).forEach(function(k){
-          localStorage.setItem(k, cloudData[k]);
+          if(!isExcludedKey(k)) localStorage.setItem(k, cloudData[k]);
         });
+        // クラウドの更新時刻を記録
+        if(cloud.updatedAt){
+          localStorage.setItem('tf_sync_cloudAt', cloud.updatedAt);
+        }
         isApplying = false;
         updateSyncUI('synced');
         return true;
@@ -12354,7 +12409,8 @@ function legendBackToParty(){
   if(_origLsSet){
     window.ls_set = function(k, v){
       _origLsSet(k, v);
-      if(!isApplying && window._fb && window._fb.currentUser){
+      var fullK = 'tf3_'+k;
+      if(!isApplying && !isExcludedKey(fullK) && window._fb && window._fb.currentUser){
         scheduleSync();
       }
     };
@@ -12363,14 +12419,14 @@ function legendBackToParty(){
   var _origSetItem = localStorage.setItem.bind(localStorage);
   localStorage.setItem = function(k, v){
     _origSetItem(k, v);
-    if(!isApplying && k && k.indexOf('tf3_')===0 && window._fb && window._fb.currentUser){
+    if(!isApplying && k && k.indexOf('tf3_')===0 && !isExcludedKey(k) && window._fb && window._fb.currentUser){
       scheduleSync();
     }
   };
   var _origRemoveItem = localStorage.removeItem.bind(localStorage);
   localStorage.removeItem = function(k){
     _origRemoveItem(k);
-    if(!isApplying && k && k.indexOf('tf3_')===0 && window._fb && window._fb.currentUser){
+    if(!isApplying && k && k.indexOf('tf3_')===0 && !isExcludedKey(k) && window._fb && window._fb.currentUser){
       scheduleSync();
     }
   };
@@ -12385,6 +12441,59 @@ function legendBackToParty(){
     }, SYNC_DEBOUNCE_MS);
   }
 
+  // マージ選択ダイアログ
+  function showLoginMergeDialog(user, cloudDate, cloudKeyCount){
+    var existing = document.getElementById('loginMergeDialog');
+    if(existing) existing.remove();
+    var dlg = document.createElement('div');
+    dlg.id = 'loginMergeDialog';
+    dlg.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:20000;display:flex;align-items:center;justify-content:center;padding:20px;';
+    // localCount
+    var localCount = 0;
+    for(var i=0;i<localStorage.length;i++){
+      var lk = localStorage.key(i);
+      if(lk && lk.indexOf('tf3_')===0 && lk!=='tf3_now_track') localCount++;
+    }
+    dlg.innerHTML = 
+      '<div style="max-width:460px;width:100%;background:var(--s);border:1px solid var(--border);border-radius:16px;padding:22px;">'+
+        '<div style="font-size:1rem;font-weight:800;color:var(--text);margin-bottom:6px;">☁️ '+(user.displayName||user.email)+' としてログイン</div>'+
+        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:16px;">クラウドとローカル、両方にデータがあります。どうしますか？</div>'+
+        '<div style="display:flex;flex-direction:column;gap:10px;">'+
+          '<button onclick="loginMergeChoose(\'useCloud\')" style="padding:14px;text-align:left;border:1px solid rgba(56,189,248,.4);border-radius:12px;background:rgba(56,189,248,.08);color:var(--text);cursor:pointer;font-family:inherit;">'+
+            '<div style="font-size:.8rem;font-weight:700;color:var(--cyan);margin-bottom:3px;">⬇ クラウドのデータを使う</div>'+
+            '<div style="font-size:.65rem;color:var(--muted);">'+cloudKeyCount+'項目（'+cloudDate+'）<br>ローカルの記録は消えます</div>'+
+          '</button>'+
+          '<button onclick="loginMergeChoose(\'useLocal\')" style="padding:14px;text-align:left;border:1px solid rgba(74,222,128,.4);border-radius:12px;background:rgba(74,222,128,.08);color:var(--text);cursor:pointer;font-family:inherit;">'+
+            '<div style="font-size:.8rem;font-weight:700;color:var(--green);margin-bottom:3px;">⬆ ローカルのデータで上書き</div>'+
+            '<div style="font-size:.65rem;color:var(--muted);">'+localCount+'項目<br>クラウドのデータを今のローカルで置き換えます</div>'+
+          '</button>'+
+          '<button onclick="loginMergeChoose(\'cancel\')" style="padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--s2);color:var(--muted);cursor:pointer;font-family:inherit;font-size:.75rem;">キャンセル（ログアウト）</button>'+
+        '</div>'+
+      '</div>';
+    document.body.appendChild(dlg);
+  }
+
+  window.loginMergeChoose = async function(choice){
+    var dlg = document.getElementById('loginMergeDialog');
+    if(dlg) dlg.remove();
+    if(choice==='useCloud'){
+      await pullFromCloud();
+      toast('⬇ クラウドのデータを読み込みました');
+      setTimeout(function(){ location.reload(); }, 800);
+    } else if(choice==='useLocal'){
+      // クラウドの楽観的ロックを無視して強制書き込み
+      localStorage.removeItem('tf_sync_cloudAt');
+      await pushToCloud();
+      toast('⬆ ローカルのデータをクラウドに保存しました');
+    } else {
+      // キャンセル → ログアウト
+      try{
+        await window._fb.signOut(window._fb.auth);
+        toast('キャンセルしました');
+      }catch(e){ console.error(e); }
+    }
+  };
+
   // ログインボタン
   window.cloudLoginOrMenu = async function(){
     if(!window._fbReady){
@@ -12392,10 +12501,12 @@ function legendBackToParty(){
       return;
     }
     if(!window._fb.currentUser){
-      // 未ログイン → ログイン
+      // 未ログイン → 明示的ログインフラグを立ててからサインイン
+      window._fbExplicitLogin = true;
       try{
         await window._fb.signInWithPopup(window._fb.auth, window._fb.provider);
       }catch(e){
+        window._fbExplicitLogin = false;
         console.error(e);
         if(e.code !== 'auth/popup-closed-by-user'){
           toast('ログインに失敗しました: '+e.message,'err');
@@ -12456,14 +12567,50 @@ function legendBackToParty(){
   // 認証状態変化時
   window.onFirebaseAuthChange = async function(user){
     if(user){
-      // 初回ログイン → クラウドから読み込み
-      var loaded = await pullFromCloud();
-      if(loaded){
-        // ローカルに反映済み → 画面再描画
-        toast('☁️ '+user.displayName+' としてログイン。同期済みデータを読み込みました');
-        setTimeout(function(){ location.reload(); }, 1200);
+      var isExplicit = window._fbExplicitLogin===true;
+      window._fbExplicitLogin = false;
+      
+      if(isExplicit){
+        // ユーザーが明示的にログインボタンを押した場合
+        // クラウドの状況を調べてからダイアログ表示
+        updateSyncUI('syncing');
+        try{
+          var ref = window._fb.doc(window._fb.db, 'users', user.uid, 'timeflow', 'all');
+          var snap = await window._fb.getDoc(ref);
+          // ローカルにデータが存在するか
+          var hasLocal = false;
+          for(var li=0;li<localStorage.length;li++){
+            var lk = localStorage.key(li);
+            if(lk && lk.indexOf('tf3_')===0 && lk!=='tf3_now_track'){ hasLocal = true; break; }
+          }
+          var hasCloud = snap.exists();
+          if(hasCloud && hasLocal){
+            // 両方にデータあり → ダイアログ選択
+            var cloud = snap.data();
+            var cloudDate = cloud.updatedAt?new Date(cloud.updatedAt).toLocaleString('ja-JP'):'不明';
+            var cloudKeyCount = cloud.keyCount||'?';
+            showLoginMergeDialog(user, cloudDate, cloudKeyCount);
+          } else if(hasCloud && !hasLocal){
+            // クラウドのみ → そのまま取り込み
+            await pullFromCloud();
+            toast('☁️ '+user.displayName+' としてログイン。クラウドのデータを読み込みました');
+            setTimeout(function(){ location.reload(); }, 1200);
+          } else if(!hasCloud && hasLocal){
+            // ローカルのみ → アップロード
+            await pushToCloud();
+            toast('☁️ '+user.displayName+' としてログイン。ローカルのデータをクラウドに保存しました');
+          } else {
+            // 両方なし
+            toast('☁️ '+user.displayName+' としてログイン');
+          }
+        }catch(e){
+          console.error('ログイン処理エラー:', e);
+          toast('ログイン処理でエラーが発生しました','err');
+          updateSyncUI('error');
+        }
       } else {
-        toast('☁️ '+user.displayName+' としてログイン');
+        // セッション復元：何もしない（静かに同期済みUI表示のみ）
+        updateSyncUI('synced');
       }
     } else {
       updateSyncUI('logged-out');
@@ -12490,6 +12637,541 @@ function legendBackToParty(){
     }
   }, 300);
 })();
+</script>
+
+<!-- Report Modal -->
+<div id="reportModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10001;overflow-y:auto;padding:20px;">
+  <div style="max-width:900px;margin:0 auto;background:var(--s);border-radius:16px;padding:20px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="font-size:1rem;font-weight:800;color:var(--text);">📄 サマリーレポート</div>
+      <button onclick="closeReportModal()" style="width:34px;height:34px;border:1px solid var(--border);border-radius:8px;background:var(--s2);color:var(--muted);font-size:1.1rem;cursor:pointer;">✕</button>
+    </div>
+
+    <!-- 期間選択 -->
+    <div style="margin-bottom:14px;">
+      <div style="font-size:.78rem;font-weight:700;color:var(--text);margin-bottom:8px;">期間を選ぶ</div>
+      <div id="reportPeriodTabs" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+        <button class="rpt-period-btn active" data-p="all" onclick="setReportPeriod(this,'all')" style="padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:var(--cyan);color:#fff;font-size:.72rem;font-weight:700;cursor:pointer;font-family:inherit;">全期間</button>
+        <button class="rpt-period-btn" data-p="year" onclick="setReportPeriod(this,'year')" style="padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:var(--s2);color:var(--text);font-size:.72rem;font-weight:700;cursor:pointer;font-family:inherit;">年単位</button>
+        <button class="rpt-period-btn" data-p="month" onclick="setReportPeriod(this,'month')" style="padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:var(--s2);color:var(--text);font-size:.72rem;font-weight:700;cursor:pointer;font-family:inherit;">月単位</button>
+      </div>
+      <div id="reportPeriodSelector" style="display:none;margin-top:6px;">
+        <select id="reportYearSel" class="sel" style="padding:7px;font-size:.75rem;margin-right:6px;"></select>
+        <select id="reportMonthSel" class="sel" style="padding:7px;font-size:.75rem;display:none;"></select>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <button onclick="generateReport()" style="flex:1;padding:10px;border:1px solid rgba(74,222,128,.4);border-radius:10px;background:rgba(74,222,128,.12);color:var(--green);font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;">✨ レポート生成</button>
+      <button onclick="printReport()" id="reportPrintBtn" style="flex:1;padding:10px;border:1px solid rgba(56,189,248,.4);border-radius:10px;background:rgba(56,189,248,.12);color:var(--cyan);font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;display:none;">🖨 印刷/PDF保存</button>
+    </div>
+
+    <div id="reportPreview" style="background:#ffffff;border-radius:12px;padding:24px;min-height:200px;color:#1a1a1a;">
+      <div style="text-align:center;color:#888;padding:40px 0;font-size:.8rem;">期間を選んで「レポート生成」を押してください</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========================================================================
+// レポート生成
+// ========================================================================
+var _reportPeriod = 'all';
+var _reportYear = null;
+var _reportMonth = null;
+
+function openReportModal(){
+  document.getElementById('reportModal').style.display='block';
+  populateYearMonthSelectors();
+  // reset
+  document.getElementById('reportPeriodSelector').style.display='none';
+  document.getElementById('reportPrintBtn').style.display='none';
+  document.getElementById('reportPreview').innerHTML='<div style="text-align:center;color:#888;padding:40px 0;font-size:.8rem;">期間を選んで「レポート生成」を押してください</div>';
+  _reportPeriod='all';
+  document.querySelectorAll('.rpt-period-btn').forEach(function(b){
+    if(b.dataset.p==='all'){
+      b.style.background='var(--cyan)'; b.style.color='#fff';
+    } else {
+      b.style.background='var(--s2)'; b.style.color='var(--text)';
+    }
+  });
+}
+
+function closeReportModal(){
+  document.getElementById('reportModal').style.display='none';
+}
+
+function populateYearMonthSelectors(){
+  // 記録されている日付から年を抽出
+  var years = new Set();
+  for(var i=0;i<localStorage.length;i++){
+    var k=localStorage.key(i);
+    if(k && k.indexOf('tf3_d_')===0){
+      var d=k.substring(6); // YYYY-MM-DD
+      if(/^\d{4}-\d{2}-\d{2}$/.test(d)){
+        years.add(d.substring(0,4));
+      }
+    }
+  }
+  var yearArr = Array.from(years).sort().reverse();
+  var currentYear = new Date().getFullYear();
+  if(yearArr.length===0) yearArr=[String(currentYear)];
+  var ysel=document.getElementById('reportYearSel');
+  ysel.innerHTML='';
+  yearArr.forEach(function(y){
+    var opt=document.createElement('option');
+    opt.value=y; opt.textContent=y+'年';
+    ysel.appendChild(opt);
+  });
+  var msel=document.getElementById('reportMonthSel');
+  msel.innerHTML='';
+  for(var m=1;m<=12;m++){
+    var opt=document.createElement('option');
+    opt.value=String(m).padStart(2,'0');
+    opt.textContent=m+'月';
+    msel.appendChild(opt);
+  }
+  // デフォルト：現在月
+  var now=new Date();
+  msel.value=String(now.getMonth()+1).padStart(2,'0');
+}
+
+function setReportPeriod(btn, p){
+  _reportPeriod=p;
+  document.querySelectorAll('.rpt-period-btn').forEach(function(b){
+    b.style.background='var(--s2)'; b.style.color='var(--text)';
+  });
+  btn.style.background='var(--cyan)'; btn.style.color='#fff';
+  var sel=document.getElementById('reportPeriodSelector');
+  var ysel=document.getElementById('reportYearSel');
+  var msel=document.getElementById('reportMonthSel');
+  if(p==='all'){
+    sel.style.display='none';
+  } else if(p==='year'){
+    sel.style.display='block';
+    ysel.style.display='inline-block';
+    msel.style.display='none';
+  } else if(p==='month'){
+    sel.style.display='block';
+    ysel.style.display='inline-block';
+    msel.style.display='inline-block';
+  }
+}
+
+function collectBlocksInRange(startDate, endDate){
+  // startDate, endDate: YYYY-MM-DD string (inclusive)
+  var results = [];
+  var recordedDays = 0;
+  for(var i=0;i<localStorage.length;i++){
+    var k=localStorage.key(i);
+    if(k && k.indexOf('tf3_d_')===0){
+      var d=k.substring(6);
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(d)) continue;
+      if(startDate && d<startDate) continue;
+      if(endDate && d>endDate) continue;
+      try{
+        var raw=JSON.parse(localStorage.getItem(k));
+        if(raw && raw.blocks && raw.blocks.length>0){
+          recordedDays++;
+          raw.blocks.forEach(function(b){
+            results.push({date:d, ...b});
+          });
+        }
+      }catch(e){}
+    }
+  }
+  return {blocks: results, recordedDays: recordedDays};
+}
+
+function generateReport(){
+  var startDate=null, endDate=null, label='';
+  if(_reportPeriod==='all'){
+    label='全期間';
+  } else if(_reportPeriod==='year'){
+    _reportYear=document.getElementById('reportYearSel').value;
+    startDate=_reportYear+'-01-01';
+    endDate=_reportYear+'-12-31';
+    label=_reportYear+'年';
+  } else if(_reportPeriod==='month'){
+    _reportYear=document.getElementById('reportYearSel').value;
+    _reportMonth=document.getElementById('reportMonthSel').value;
+    startDate=_reportYear+'-'+_reportMonth+'-01';
+    // 月末日計算
+    var lastDay=new Date(parseInt(_reportYear), parseInt(_reportMonth), 0).getDate();
+    endDate=_reportYear+'-'+_reportMonth+'-'+String(lastDay).padStart(2,'0');
+    label=_reportYear+'年'+parseInt(_reportMonth)+'月';
+  }
+
+  var data = collectBlocksInRange(startDate, endDate);
+  renderReportHTML(label, data, startDate, endDate);
+  document.getElementById('reportPrintBtn').style.display='block';
+}
+
+function t2mLocal(t){var p=(t||'0:0').split(':');return (parseInt(p[0])||0)*60+(parseInt(p[1])||0);}
+
+function renderReportHTML(label, data, startDate, endDate){
+  var blocks = data.blocks;
+  if(blocks.length===0){
+    document.getElementById('reportPreview').innerHTML='<div style="text-align:center;color:#888;padding:40px 0;font-size:.8rem;">この期間の記録がありません</div>';
+    return;
+  }
+
+  // カテゴリ別集計
+  var catMins = {};
+  var subMins = {}; // 「仕事::プログラミング」単位
+  var dayMins = {}; // 日別努力時間
+  var totalMin = 0;
+  var effortMin = 0;
+  blocks.forEach(function(b){
+    var cat=(b.category||'').split('::')[0]||'その他';
+    var min;
+    var s=t2mLocal(b.start), e=t2mLocal(b.end);
+    if(e<=s) min = (1440-s)+e; else min = e-s;
+    catMins[cat]=(catMins[cat]||0)+min;
+    var sub=b.category||cat;
+    subMins[sub]=(subMins[sub]||0)+min;
+    totalMin += min;
+    if(['仕事','学習','運動'].includes(cat)){
+      effortMin += min;
+      dayMins[b.date]=(dayMins[b.date]||0)+min;
+    }
+  });
+
+  var recordedDays = data.recordedDays;
+  // 期間日数
+  var periodDays;
+  if(startDate && endDate){
+    var ds=new Date(startDate), de=new Date(endDate);
+    periodDays = Math.round((de-ds)/86400000)+1;
+  } else {
+    // 全期間：最古〜今日
+    var dates = blocks.map(function(b){return b.date;}).sort();
+    var earliest = dates[0];
+    var today = new Date().toISOString().substring(0,10);
+    var ds2=new Date(earliest), de2=new Date(today);
+    periodDays = Math.round((de2-ds2)/86400000)+1;
+  }
+
+  var CAT_COLORS = {
+    '仕事':'#38bdf8','学習':'#818cf8','運動':'#4ade80','趣味':'#fbbf24',
+    '食事':'#fb923c','休憩':'#94a3b8','移動':'#a78bfa','睡眠':'#6366f1','その他':'#64748b'
+  };
+  var CAT_EMOJI = {
+    '仕事':'💼','学習':'📚','運動':'🏃','趣味':'🎮','食事':'🍱','休憩':'☕','移動':'🚃','睡眠':'🌙','その他':'📋'
+  };
+
+  // 円グラフ（SVG）
+  var total = Object.values(catMins).reduce(function(a,b){return a+b;},0);
+  var sorted = Object.entries(catMins).sort(function(a,b){return b[1]-a[1];});
+  var svg = buildPieSVG(sorted, total, CAT_COLORS);
+
+  // カテゴリ別リスト
+  var catListHTML = sorted.map(function(e){
+    var cat=e[0], min=e[1];
+    var h=Math.floor(min/60), m=min%60;
+    var pct = total>0?(min/total*100):0;
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #eee;">'+
+      '<div style="width:12px;height:12px;border-radius:3px;background:'+(CAT_COLORS[cat]||'#999')+';flex-shrink:0;"></div>'+
+      '<div style="flex:1;font-weight:600;font-size:.82rem;">'+(CAT_EMOJI[cat]||'')+' '+cat+'</div>'+
+      '<div style="font-family:\'JetBrains Mono\',monospace;font-size:.78rem;color:#333;font-weight:700;">'+h+'h '+(m>0?(String(m).padStart(2,'0')+'m'):'')+'</div>'+
+      '<div style="font-size:.72rem;color:#666;width:45px;text-align:right;">'+pct.toFixed(1)+'%</div>'+
+      '</div>';
+  }).join('');
+
+  // サブカテゴリ（上位5個）
+  var topSubs = Object.entries(subMins).filter(function(e){
+    return e[0].indexOf('::')>=0; // サブがあるものだけ
+  }).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
+  var subHTML='';
+  if(topSubs.length>0){
+    subHTML = '<div style="margin-top:14px;padding-top:12px;border-top:2px solid #eee;">'+
+      '<div style="font-size:.75rem;font-weight:700;color:#666;margin-bottom:8px;">主な活動内容</div>'+
+      topSubs.map(function(e){
+        var parts=e[0].split('::');
+        var cat=parts[0], sub=parts[1];
+        var h=Math.floor(e[1]/60), m=e[1]%60;
+        return '<div style="display:flex;gap:6px;font-size:.75rem;margin-bottom:3px;">'+
+          '<span style="color:'+(CAT_COLORS[cat]||'#999')+';font-weight:700;min-width:50px;">'+(CAT_EMOJI[cat]||'')+' '+cat+'</span>'+
+          '<span style="flex:1;color:#333;">'+sub+'</span>'+
+          '<span style="font-family:\'JetBrains Mono\',monospace;color:#333;font-weight:700;">'+h+'h'+(m>0?String(m).padStart(2,'0')+'m':'')+'</span>'+
+          '</div>';
+      }).join('')+
+      '</div>';
+  }
+
+  // 日別努力時間バーグラフ（最大30本）
+  var dayEntries = Object.entries(dayMins).sort(function(a,b){return a[0].localeCompare(b[0]);});
+  var dayChartHTML='';
+  if(dayEntries.length>0){
+    // 30以上あれば週単位に集約
+    var chartData;
+    var chartLabel;
+    if(dayEntries.length>45){
+      // 週単位に集約
+      var weekMap={};
+      dayEntries.forEach(function(e){
+        var d=new Date(e[0]);
+        var weekKey = getWeekKey(d);
+        weekMap[weekKey]=(weekMap[weekKey]||0)+e[1];
+      });
+      chartData = Object.entries(weekMap).sort();
+      chartLabel='週';
+    } else {
+      chartData = dayEntries;
+      chartLabel='日';
+    }
+    var maxMin = Math.max.apply(null, chartData.map(function(e){return e[1];}));
+    var barW = Math.max(8, Math.floor(600/chartData.length));
+    dayChartHTML='<div style="margin-top:14px;padding-top:12px;border-top:2px solid #eee;">'+
+      '<div style="font-size:.75rem;font-weight:700;color:#666;margin-bottom:8px;">'+chartLabel+'別 努力時間の推移（仕事・学習・運動）</div>'+
+      '<div style="display:flex;align-items:flex-end;gap:2px;height:80px;border-bottom:2px solid #ddd;padding-bottom:2px;">'+
+      chartData.map(function(e){
+        var h = maxMin>0?(e[1]/maxMin*76):0;
+        var hr = (e[1]/60).toFixed(1);
+        return '<div style="width:'+barW+'px;height:'+h+'px;background:linear-gradient(to top,#38bdf8,#818cf8);border-radius:2px 2px 0 0;" title="'+e[0]+': '+hr+'h"></div>';
+      }).join('')+
+      '</div>'+
+      '<div style="display:flex;justify-content:space-between;font-size:.55rem;color:#999;margin-top:3px;">'+
+      '<span>'+chartData[0][0]+'</span>'+
+      (chartData.length>1?'<span>'+chartData[chartData.length-1][0]+'</span>':'')+
+      '</div>'+
+      '</div>';
+  }
+
+  // 合計時間の表示
+  var totalH = Math.floor(totalMin/60);
+  var effortH = Math.floor(effortMin/60);
+  var avgH = recordedDays>0?(effortMin/60/recordedDays).toFixed(1):'0.0';
+  var recordRate = periodDays>0?Math.round(recordedDays/periodDays*100):0;
+
+  var html = 
+    '<div id="reportCanvas" style="font-family:\'Hiragino Sans\',\'Yu Gothic\',sans-serif;color:#1a1a1a;max-width:800px;margin:0 auto;">'+
+      '<div style="background:linear-gradient(135deg,#38bdf8,#818cf8);color:#fff;padding:18px 20px;border-radius:12px 12px 0 0;">'+
+        '<div style="font-size:1.2rem;font-weight:800;letter-spacing:.02em;">⏰ 時間の使い方レポート</div>'+
+        '<div style="font-size:.85rem;opacity:.9;margin-top:2px;">'+label+'</div>'+
+      '</div>'+
+      '<div style="padding:18px 20px;background:#fff;">'+
+        // サマリー数値
+        '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;">'+
+          '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:10px;text-align:center;">'+
+            '<div style="font-size:.65rem;color:#0369a1;font-weight:700;">記録日数</div>'+
+            '<div style="font-size:1.3rem;font-weight:800;color:#0369a1;">'+recordedDays+'<span style="font-size:.75rem;">日</span></div>'+
+            '<div style="font-size:.6rem;color:#0891b2;">記録率 '+recordRate+'%</div>'+
+          '</div>'+
+          '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px;text-align:center;">'+
+            '<div style="font-size:.65rem;color:#15803d;font-weight:700;">努力時間</div>'+
+            '<div style="font-size:1.3rem;font-weight:800;color:#15803d;">'+effortH+'<span style="font-size:.75rem;">h</span></div>'+
+            '<div style="font-size:.6rem;color:#16a34a;">仕事・学習・運動</div>'+
+          '</div>'+
+          '<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:10px;text-align:center;">'+
+            '<div style="font-size:.65rem;color:#b45309;font-weight:700;">1日平均</div>'+
+            '<div style="font-size:1.3rem;font-weight:800;color:#b45309;">'+avgH+'<span style="font-size:.75rem;">h</span></div>'+
+            '<div style="font-size:.6rem;color:#d97706;">努力時間/記録日</div>'+
+          '</div>'+
+          '<div style="background:#fce7f3;border:1px solid #fbcfe8;border-radius:10px;padding:10px;text-align:center;">'+
+            '<div style="font-size:.65rem;color:#9d174d;font-weight:700;">総記録時間</div>'+
+            '<div style="font-size:1.3rem;font-weight:800;color:#9d174d;">'+totalH+'<span style="font-size:.75rem;">h</span></div>'+
+            '<div style="font-size:.6rem;color:#be185d;">全カテゴリ合計</div>'+
+          '</div>'+
+        '</div>'+
+        // 円グラフ＋カテゴリリスト
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px;">'+
+          '<div style="background:#fafafa;border-radius:10px;padding:10px;display:flex;align-items:center;justify-content:center;">'+svg+'</div>'+
+          '<div>'+catListHTML+'</div>'+
+        '</div>'+
+        subHTML+
+        dayChartHTML+
+        '<div style="margin-top:16px;padding-top:10px;border-top:1px dashed #ccc;font-size:.6rem;color:#999;text-align:right;">'+
+          'Generated by TIMEFLOW · '+new Date().toLocaleDateString('ja-JP')+
+        '</div>'+
+      '</div>'+
+    '</div>';
+
+  document.getElementById('reportPreview').innerHTML = html;
+}
+
+function buildPieSVG(sorted, total, colors){
+  if(total===0) return '<div style="color:#999;font-size:.8rem;">データなし</div>';
+  var cx=110, cy=110, r=90;
+  var startAngle = -Math.PI/2;
+  var paths = [];
+  sorted.forEach(function(e){
+    var cat=e[0], min=e[1];
+    var angle = (min/total)*Math.PI*2;
+    var endAngle = startAngle + angle;
+    var x1 = cx + r*Math.cos(startAngle);
+    var y1 = cy + r*Math.sin(startAngle);
+    var x2 = cx + r*Math.cos(endAngle);
+    var y2 = cy + r*Math.sin(endAngle);
+    var largeArc = angle>Math.PI?1:0;
+    var d = 'M '+cx+' '+cy+' L '+x1+' '+y1+' A '+r+' '+r+' 0 '+largeArc+' 1 '+x2+' '+y2+' Z';
+    paths.push('<path d="'+d+'" fill="'+(colors[cat]||'#999')+'"/>');
+    startAngle = endAngle;
+  });
+  return '<svg width="220" height="220" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">'+
+    paths.join('')+
+    '<circle cx="110" cy="110" r="40" fill="#fff"/>'+
+    '<text x="110" y="108" text-anchor="middle" font-size="11" fill="#666" font-weight="600">時間配分</text>'+
+    '<text x="110" y="122" text-anchor="middle" font-size="10" fill="#999">'+Math.floor(total/60)+'h</text>'+
+    '</svg>';
+}
+
+function getWeekKey(d){
+  var date=new Date(d);
+  var day=date.getDay();
+  var diff=date.getDate()-day;
+  date.setDate(diff);
+  return date.toISOString().substring(0,10);
+}
+
+function printReport(){
+  var canvas = document.getElementById('reportCanvas');
+  if(!canvas){ toast('先にレポートを生成してください','err'); return; }
+  var html = canvas.outerHTML;
+  var w = window.open('', '_blank');
+  w.document.write(
+    '<!DOCTYPE html><html><head><meta charset="utf-8"><title>TIMEFLOW レポート</title>'+
+    '<style>'+
+    '@page{size:A4;margin:10mm;}'+
+    'body{margin:0;padding:0;background:#fff;font-family:"Hiragino Sans","Yu Gothic",sans-serif;}'+
+    '#reportCanvas{margin:0 auto;}'+
+    '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}'+
+    '</style></head><body>'+html+
+    '<script>setTimeout(function(){window.print();},500);<\/script>'+
+    '</body></html>'
+  );
+  w.document.close();
+}
+</script>
+
+<!-- Diary Modal -->
+<div id="diaryModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10002;overflow-y:auto;padding:20px;">
+  <div style="max-width:560px;margin:0 auto;background:var(--s);border-radius:16px;padding:20px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div>
+        <div style="font-size:.6rem;color:var(--muted2);">目標の日記</div>
+        <div id="diaryModalTitle" style="font-size:.95rem;font-weight:800;color:var(--text);"></div>
+      </div>
+      <button onclick="closeDiary()" style="width:34px;height:34px;border:1px solid var(--border);border-radius:8px;background:var(--s2);color:var(--muted);font-size:1.1rem;cursor:pointer;">✕</button>
+    </div>
+
+    <div id="diaryPromptBox" style="display:none;background:linear-gradient(135deg,rgba(251,191,36,.12),rgba(56,189,248,.08));border:1px solid rgba(251,191,36,.35);border-radius:12px;padding:14px;margin-bottom:14px;">
+      <div id="diaryPromptText" style="font-size:.78rem;color:var(--text);font-weight:700;margin-bottom:4px;"></div>
+      <div style="font-size:.65rem;color:var(--muted2);margin-bottom:10px;">進捗・心境・今の気持ちを短く書き留めておきましょう</div>
+      <textarea id="diaryNewText" placeholder="例：コードFがほぼ押さえられるようになった。Fmからの進行に挑戦中。" rows="3" maxlength="300" style="width:100%;padding:10px;background:var(--s1);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.78rem;resize:none;box-sizing:border-box;font-family:inherit;"></textarea>
+      <button onclick="saveDiaryEntry()" style="margin-top:8px;width:100%;padding:10px;border:1px solid rgba(74,222,128,.4);border-radius:10px;background:rgba(74,222,128,.12);color:var(--green);font-size:.8rem;font-weight:700;cursor:pointer;font-family:inherit;">✍ 書き残す</button>
+    </div>
+
+    <div style="font-size:.7rem;font-weight:700;color:var(--muted);margin-bottom:8px;">📚 これまでの記録</div>
+    <div id="diaryList"></div>
+  </div>
+</div>
+
+<script>
+// ========================================================================
+// 目標日記システム
+// ========================================================================
+function daysSinceStr(dStr){
+  if(!dStr) return 0;
+  var d=new Date(dStr), now=new Date();
+  d.setHours(0,0,0,0); now.setHours(0,0,0,0);
+  return Math.floor((now-d)/86400000);
+}
+
+var _currentDiaryTodoId = null;
+
+function openDiary(todoId){
+  _currentDiaryTodoId = todoId;
+  var todos=getTodos();
+  var todo=todos.find(function(t){return t.id===todoId;});
+  if(!todo){toast('目標が見つかりません','err');return;}
+  document.getElementById('diaryModalTitle').textContent=todo.title;
+
+  var daysOld = daysSinceStr(todo.createdAt);
+  var monthsPassed = Math.floor(daysOld/30);
+  var diaries = todo.diaries||[];
+  var hasPrompt = monthsPassed>=1 && diaries.length<(monthsPassed+1);
+
+  var promptBox=document.getElementById('diaryPromptBox');
+  if(hasPrompt){
+    promptBox.style.display='block';
+    document.getElementById('diaryPromptText').textContent='「'+todo.title+'」を立てて '+monthsPassed+'ヶ月 が経ちました。進捗はどうですか？';
+    document.getElementById('diaryNewText').value='';
+  } else {
+    // いつでも追加できるように常に表示
+    promptBox.style.display='block';
+    var nextMonth = monthsPassed+1;
+    var dayUntilNext = 30 - (daysOld - monthsPassed*30);
+    if(diaries.length===0){
+      document.getElementById('diaryPromptText').textContent='「'+todo.title+'」の今の状況を書き残そう';
+    } else {
+      document.getElementById('diaryPromptText').textContent='今の状況・進捗を追記できます（次のリマインダーまで約'+dayUntilNext+'日）';
+    }
+    document.getElementById('diaryNewText').value='';
+  }
+
+  renderDiaryList(todo);
+  document.getElementById('diaryModal').style.display='block';
+}
+
+function closeDiary(){
+  document.getElementById('diaryModal').style.display='none';
+  _currentDiaryTodoId=null;
+}
+
+function renderDiaryList(todo){
+  var diaries=(todo.diaries||[]).slice().sort(function(a,b){return (a.date>b.date?-1:1);});
+  var el=document.getElementById('diaryList');
+  if(diaries.length===0){
+    el.innerHTML='<div style="color:var(--muted);font-size:.7rem;text-align:center;padding:20px;">まだ記録はありません</div>';
+    return;
+  }
+  el.innerHTML=diaries.map(function(d,i){
+    var labelDate = d.date;
+    var label = (d.monthNum===0 || !d.monthNum)?'🌱 初日':'📅 '+d.monthNum+'ヶ月目';
+    return '<div style="background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'+
+        '<div style="font-size:.7rem;font-weight:700;color:var(--cyan);">'+label+'</div>'+
+        '<div style="font-size:.6rem;color:var(--muted);">'+labelDate+'</div>'+
+      '</div>'+
+      '<div style="font-size:.75rem;color:var(--text);white-space:pre-wrap;line-height:1.5;">'+escapeHtml(d.text)+'</div>'+
+      '</div>';
+  }).join('');
+}
+
+function escapeHtml(s){return (s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+
+function saveDiaryEntry(){
+  var text=document.getElementById('diaryNewText').value.trim();
+  if(!text){toast('内容を入力してください','err');return;}
+  var todos=getTodos();
+  var todo=todos.find(function(t){return t.id===_currentDiaryTodoId;});
+  if(!todo){return;}
+  if(!todo.diaries) todo.diaries=[];
+  var daysOld=daysSinceStr(todo.createdAt);
+  var monthNum = Math.floor(daysOld/30);
+  todo.diaries.push({date:todayStr(), text:text, monthNum:monthNum});
+  setTodos(todos);
+  // XP reward for diary entry
+  addXPRaw(50);
+  addEventLog('📖 日記を書きました「'+todo.title+'」 +50 XP','awakening');
+  toast('📖 書き残しました（+50 XP）');
+  document.getElementById('diaryNewText').value='';
+  renderDiaryList(todo);
+  renderTodos();
+  updateNav();
+}
+
+// 起動時に1ヶ月経過した目標があるか確認
+function checkDiaryReminders(){
+  var todos=getTodos().filter(function(t){return !t.done;});
+  var needsPrompt = todos.some(function(t){
+    var daysOld=daysSinceStr(t.createdAt);
+    var monthsPassed=Math.floor(daysOld/30);
+    return monthsPassed>=1 && (t.diaries||[]).length<(monthsPassed+1);
+  });
+  return needsPrompt;
+}
 </script>
 </body>
 </html>
